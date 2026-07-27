@@ -1,1008 +1,1469 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Transit TAT Control</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<style>
-  :root{
-    --ink:#151A21;
-    --ink-2:#232C36;
-    --paper:#ECEDE7;
-    --paper-2:#E1E3DB;
-    --card:#FFFFFF;
-    --amber:#E2A33B;
-    --amber-dark:#C2872A;
-    --green:#3C7A5D;
-    --green-bg:#E4EFE8;
-    --red:#B84C3E;
-    --red-bg:#F5E6E3;
-    --steel:#5B6673;
-    --steel-light:#8A93A0;
-    --line:#D6D8CF;
-    --radius:10px;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:var(--paper);
-    color:var(--ink);
-    font-family:'IBM Plex Sans', sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .ttat-display{font-family:'Space Grotesk', sans-serif;}
-  .ttat-mono{font-family:'IBM Plex Mono', monospace;}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRANSIT TAT DASHBOARD - Logistics Analytics</title>
+    <style>
+        /* ===== CSS Variables & Reset ===== */
+        :root {
+            --primary: #1a3c6e;
+            --primary-dark: #0f2a4a;
+            --primary-light: #e8edf5;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --gray: #6c7a8d;
+            --gray-light: #f8f9fa;
+            --gray-border: #e8ecf1;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+            --radius: 12px;
+            --transition: 0.3s ease;
+        }
 
-  /* ---------- Hero ---------- */
-  .ttat-hero{
-    background:var(--ink);
-    color:var(--paper);
-    padding:56px 32px 40px;
-    position:relative;
-    overflow:hidden;
-  }
-  .ttat-hero-inner{max-width:1080px;margin:0 auto;}
-  .ttat-eyebrow{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12px;
-    letter-spacing:.14em;
-    text-transform:uppercase;
-    color:var(--amber);
-    margin:0 0 14px;
-  }
-  .ttat-title{
-    font-size:clamp(32px,5vw,48px);
-    font-weight:700;
-    margin:0 0 12px;
-    letter-spacing:-0.01em;
-  }
-  .ttat-subtitle{
-    font-size:16px;
-    color:#C7CBC2;
-    max-width:560px;
-    line-height:1.55;
-    margin:0 0 34px;
-  }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  /* Barrier signature element */
-  .ttat-barrier-wrap{display:flex;align-items:center;gap:16px;height:40px;}
-  .ttat-barrier-hinge{
-    width:14px;height:14px;border-radius:50%;
-    background:var(--amber);flex:none;
-    box-shadow:0 0 0 4px rgba(226,163,59,.18);
-  }
-  .ttat-barrier{
-    width:280px;height:16px;border-radius:4px;
-    background:repeating-linear-gradient(-45deg,var(--amber) 0 14px,var(--ink-2) 14px 28px);
-    border:1px solid rgba(0,0,0,.25);
-    transform-origin:left center;
-    transform:rotate(0deg);
-    transition:transform 900ms cubic-bezier(.2,.8,.2,1.1);
-  }
-  .ttat-barrier.raised{transform:rotate(-32deg);}
-  .ttat-barrier-status{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12px;letter-spacing:.08em;text-transform:uppercase;
-    color:var(--steel-light);
-  }
-  .ttat-barrier-status.open{color:var(--green);}
-  .ttat-barrier-status.open::before{content:"● ";}
-  .ttat-barrier-status:not(.open)::before{content:"● ";color:var(--red);}
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
 
-  /* ---------- Upload ---------- */
-  .ttat-main{max-width:1080px;margin:-24px auto 60px;padding:0 32px;}
-  .ttat-upload-card{
-    background:var(--card);
-    border-radius:var(--radius);
-    box-shadow:0 12px 32px rgba(21,26,33,.14);
-    padding:28px;
-    border:1px solid var(--line);
-  }
-  .ttat-dropzone{
-    border:2px dashed var(--steel-light);
-    border-radius:8px;
-    padding:36px 24px;
-    text-align:center;
-    cursor:pointer;
-    transition:border-color .2s, background .2s;
-  }
-  .ttat-dropzone:hover, .ttat-dropzone.drag{
-    border-color:var(--amber);
-    background:#FBF6EC;
-  }
-  .ttat-dropzone svg{margin-bottom:10px;}
-  .ttat-dropzone-title{font-weight:600;font-size:15px;margin:0 0 4px;}
-  .ttat-dropzone-sub{font-size:13px;color:var(--steel);margin:0;}
-  .ttat-dropzone input{display:none;}
-  .ttat-format-note{
-    font-size:12.5px;color:var(--steel);margin-top:14px;
-    line-height:1.6;
-  }
-  .ttat-format-note code{
-    background:var(--paper-2);padding:1px 6px;border-radius:4px;
-    font-family:'IBM Plex Mono', monospace;font-size:11.5px;
-  }
-  .ttat-status-line{
-    margin-top:16px;font-size:13.5px;display:flex;align-items:center;gap:8px;
-  }
-  .ttat-spinner{
-    width:14px;height:14px;border-radius:50%;
-    border:2px solid var(--line);border-top-color:var(--amber);
-    animation:spin .7s linear infinite;
-  }
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .ttat-banner{
-    margin-top:14px;padding:12px 14px;border-radius:8px;font-size:13.5px;line-height:1.5;
-  }
-  .ttat-banner.warn{background:#FBF1E1;border:1px solid #EAD1A0;color:#7A5A18;}
-  .ttat-banner.error{background:var(--red-bg);border:1px solid #E2B7AE;color:#7A2E22;}
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            animation: fadeIn 0.5s ease;
+        }
 
-  /* ---------- App shell ---------- */
-  .ttat-app{display:none;margin-top:28px;}
-  .ttat-app.show{display:block;}
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-  .ttat-toolbar{
-    display:flex;align-items:center;justify-content:space-between;
-    flex-wrap:wrap;gap:14px;margin-bottom:18px;
-  }
-  .ttat-tabs{display:flex;gap:4px;background:var(--paper-2);padding:4px;border-radius:8px;}
-  .ttat-tab{
-    border:none;background:transparent;padding:9px 16px;border-radius:6px;
-    font-family:'IBM Plex Sans';font-size:13.5px;font-weight:600;color:var(--steel);
-    cursor:pointer;transition:all .15s;
-  }
-  .ttat-tab.active{background:var(--ink);color:var(--paper);}
-  .ttat-tab:not(.active):hover{color:var(--ink);}
+        /* ===== Header ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--gray-border);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
 
-  .ttat-download-btn{
-    background:var(--amber);color:var(--ink);border:none;
-    padding:11px 20px;border-radius:8px;font-weight:600;font-size:13.5px;
-    cursor:pointer;display:flex;align-items:center;gap:8px;
-    transition:background .15s, transform .1s;
-    font-family:'IBM Plex Sans';
-  }
-  .ttat-download-btn:hover{background:var(--amber-dark);}
-  .ttat-download-btn:active{transform:translateY(1px);}
-  .ttat-reset-link{
-    font-size:12.5px;color:var(--steel);background:none;border:none;cursor:pointer;
-    text-decoration:underline;padding:0;
-  }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
 
-  .ttat-panel{display:none;}
-  .ttat-panel.active{display:block;}
+        .header-logo {
+            font-size: 32px;
+        }
 
-  /* KPI cards */
-  .ttat-kpi-row{
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-    gap:12px;margin-bottom:20px;
-  }
-  .ttat-kpi{
-    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:16px 18px;
-  }
-  .ttat-kpi-label{
-    font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--steel);
-    margin:0 0 8px;
-  }
-  .ttat-kpi-value{
-    font-family:'IBM Plex Mono', monospace;font-size:26px;font-weight:600;margin:0;
-    color:var(--ink);
-  }
-  .ttat-kpi-value.accent{color:var(--amber-dark);}
-  .ttat-kpi-value.good{color:var(--green);}
-  .ttat-kpi-value.bad{color:var(--red);}
-  .ttat-kpi-sub{font-size:11.5px;color:var(--steel-light);margin:4px 0 0;}
+        .header h1 {
+            color: var(--primary);
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
 
-  .ttat-card{
-    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:20px;margin-bottom:18px;
-  }
-  .ttat-card-title{
-    font-family:'Space Grotesk';font-size:16px;font-weight:600;margin:0 0 4px;
-  }
-  .ttat-card-sub{font-size:12.5px;color:var(--steel);margin:0 0 16px;}
-  .ttat-chart-wrap{height:320px;position:relative;}
+        .header .subtitle {
+            color: var(--gray);
+            font-size: 13px;
+            font-weight: 400;
+        }
 
-  /* Breakdown tables */
-  .ttat-table{width:100%;border-collapse:collapse;font-size:13px;}
-  .ttat-table th{
-    text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
-    color:var(--steel);border-bottom:1px solid var(--line);padding:8px 10px;
-    cursor:pointer;user-select:none;white-space:nowrap;
-  }
-  .ttat-table th:hover{color:var(--ink);}
-  .ttat-table th.sorted::after{content:" ▾";color:var(--amber-dark);}
-  .ttat-table td{
-    padding:9px 10px;border-bottom:1px solid #EEEFE9;font-family:'IBM Plex Mono';font-size:12.5px;
-  }
-  .ttat-table tbody tr:hover{background:#FAFAF6;}
-  .ttat-table tbody tr.clickable{cursor:pointer;}
-  .ttat-pill{
-    display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;
-    font-family:'IBM Plex Sans';
-  }
-  .ttat-pill.dedicated{background:#E5EEFB;color:#2A5C9E;}
-  .ttat-pill.pool{background:#EFE7F7;color:#6B3FA0;}
-  .ttat-pill.market{background:var(--green-bg);color:var(--green);}
-  .ttat-pill.blank{background:#EEEEEE;color:var(--steel);}
-  .ttat-note-tag{color:var(--red);font-family:'IBM Plex Sans';font-size:11.5px;}
-  .ttat-tat-num{font-weight:600;}
+        .header-right {
+            text-align: right;
+        }
 
-  /* Trip log filters */
-  .ttat-filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
-  .ttat-filters input, .ttat-filters select{
-    font-family:'IBM Plex Sans';font-size:13px;padding:8px 12px;
-    border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);
-  }
-  .ttat-filters input{flex:1;min-width:160px;}
-  .ttat-table-scroll{overflow-x:auto;}
-  .ttat-pagination{
-    display:flex;align-items:center;justify-content:space-between;margin-top:14px;
-    font-size:12.5px;color:var(--steel);
-  }
-  .ttat-pagination button{
-    background:var(--paper-2);border:none;padding:6px 12px;border-radius:6px;
-    cursor:pointer;font-size:12.5px;font-family:'IBM Plex Sans';font-weight:600;
-  }
-  .ttat-pagination button:disabled{opacity:.4;cursor:default;}
-  .ttat-pagination-controls{display:flex;gap:8px;align-items:center;}
+        .header-right .badge-count {
+            display: inline-block;
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
 
-  .ttat-footer{
-    max-width:1080px;margin:0 auto 60px;padding:0 32px;
-    font-size:12px;color:var(--steel-light);
-  }
+        .header-right div {
+            font-size: 12px;
+            color: var(--gray);
+        }
 
-  @media (max-width:640px){
-    .ttat-hero{padding:40px 20px 30px;}
-    .ttat-main, .ttat-footer{padding:0 16px;}
-    .ttat-kpi-row{grid-template-columns:repeat(2,1fr);}
-  }
-</style>
+        /* ===== Upload Section ===== */
+        .upload-section {
+            background: var(--gray-light);
+            border: 2px dashed #d0d7de;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 25px;
+            transition: all var(--transition);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .upload-section.dragover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .upload-section .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-section h3 {
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .upload-section p {
+            color: var(--gray);
+            margin-bottom: 20px;
+        }
+
+        .upload-section input[type="file"] {
+            display: none;
+        }
+
+        .upload-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background var(--transition);
+            border: none;
+        }
+
+        .upload-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .upload-btn.secondary {
+            background: var(--info);
+            margin-left: 10px;
+        }
+
+        .upload-btn.secondary:hover {
+            background: #138496;
+        }
+
+        .upload-info {
+            margin-top: 15px;
+            color: var(--gray);
+            font-size: 13px;
+        }
+
+        /* ===== Stats Grid ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: var(--gray-light);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+            transition: transform var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-card .label {
+            color: var(--gray);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-top: 5px;
+        }
+
+        .stat-card.success { border-left-color: var(--success); }
+        .stat-card.warning { border-left-color: var(--warning); }
+        .stat-card.danger { border-left-color: var(--danger); }
+        .stat-card.info { border-left-color: var(--info); }
+
+        /* ===== Controls ===== */
+        .controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            align-items: center;
+            background: var(--gray-light);
+            padding: 12px 15px;
+            border-radius: 8px;
+        }
+
+        .controls select, .controls input {
+            padding: 7px 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            min-width: 120px;
+            transition: border var(--transition);
+        }
+
+        .controls select:focus, .controls input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26, 60, 110, 0.1);
+        }
+
+        .controls input[type="text"] {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .controls button {
+            padding: 7px 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all var(--transition);
+            white-space: nowrap;
+        }
+
+        .controls button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .controls button.secondary {
+            background: var(--gray);
+        }
+
+        .controls button.secondary:hover {
+            background: #5a6a7d;
+        }
+
+        .controls button.success {
+            background: var(--success);
+        }
+
+        .controls button.success:hover {
+            background: #1e7e34;
+        }
+
+        .controls .filter-label {
+            font-size: 11px;
+            color: var(--gray);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ===== Table ===== */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--gray-border);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        table thead {
+            background: var(--gray-light);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        table th {
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary);
+            border-bottom: 2px solid var(--gray-border);
+            white-space: nowrap;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        table td {
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--gray-border);
+            white-space: nowrap;
+            font-size: 13px;
+        }
+
+        table tbody tr {
+            transition: background var(--transition);
+        }
+
+        table tbody tr:hover {
+            background: var(--primary-light);
+        }
+
+        /* ===== Badges ===== */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        .badge-secondary { background: #e2e3e5; color: #383d41; }
+        .badge-primary { background: #cce5ff; color: #004085; }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+            font-size: 16px;
+        }
+
+        /* ===== Summary Charts ===== */
+        .summary-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid var(--gray-border);
+        }
+
+        .summary-section h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .chart-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .chart-box {
+            background: var(--gray-light);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .chart-box h4 {
+            margin-bottom: 10px;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bar-item .label {
+            min-width: 70px;
+            font-size: 12px;
+            word-break: break-word;
+            color: #555;
+        }
+
+        .bar-item .bar-track {
+            flex: 1;
+            height: 18px;
+            background: #e8ecf1;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-item .bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 6px;
+            font-size: 10px;
+            color: white;
+            font-weight: 600;
+            min-width: 20px;
+        }
+
+        .bar-fill.blue { background: var(--primary); }
+        .bar-fill.green { background: var(--success); }
+        .bar-fill.orange { background: var(--warning); color: #333; }
+        .bar-fill.red { background: var(--danger); }
+        .bar-fill.purple { background: #6f42c1; }
+        .bar-fill.teal { background: var(--info); }
+        .bar-fill.pink { background: #e83e8c; }
+        .bar-fill.indigo { background: #6610f2; }
+
+        .note {
+            font-size: 12px;
+            color: var(--gray);
+            font-style: italic;
+            margin-top: 10px;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .header-right { text-align: left; width: 100%; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .chart-container { grid-template-columns: 1fr; }
+            .controls select, .controls input { min-width: 100px; font-size: 12px; }
+            .controls button { font-size: 12px; padding: 6px 12px; }
+            .upload-section { padding: 20px; }
+            .upload-section .upload-icon { font-size: 32px; }
+            .upload-btn { font-size: 14px; padding: 10px 20px; }
+            table { font-size: 12px; }
+            table th, table td { padding: 6px 10px; }
+            .header h1 { font-size: 22px; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .controls { flex-direction: column; align-items: stretch; }
+            .controls select, .controls input, .controls button { width: 100%; }
+            .header h1 { font-size: 20px; }
+        }
+    </style>
 </head>
 <body>
 
-<div class="ttat-hero">
-  <div class="ttat-hero-inner">
-    <p class="ttat-eyebrow">Plant Gate Operations</p>
-    <h1 class="ttat-title ttat-display">Transit TAT Control</h1>
-    <p class="ttat-subtitle">Upload a gate transaction export and get plant-to-plant transit turnaround time, broken down by origin and carrier &mdash; then download the clean report.</p>
-    <div class="ttat-barrier-wrap">
-      <div class="ttat-barrier-hinge"></div>
-      <div class="ttat-barrier" id="barrier"></div>
-      <span class="ttat-barrier-status" id="barrierStatus">Gate closed &mdash; awaiting file</span>
-    </div>
-  </div>
-</div>
-
-<div class="ttat-main">
-
-  <div class="ttat-upload-card" id="uploadCard">
-    <div class="ttat-dropzone" id="dropzone">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8A93A0" stroke-width="1.6"><path d="M12 16V4M12 4L7 9M12 4l5 5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
-      <p class="ttat-dropzone-title">Drop your Gate Report here, or click to browse</p>
-      <p class="ttat-dropzone-sub">Accepts .xlsx, .xls, or .csv</p>
-      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
-    </div>
-    <p class="ttat-format-note">
-      Expected columns: <code>Trip</code>, <code>SHIP_TYPE</code>, <code>Gate Out Date</code>, <code>Gate Reported Date</code>
-      &mdash; plus optional <code>Vehicle</code>, <code>ORIG_NAME</code>, <code>Carrier</code> for the Origin and Carrier Type breakdowns.
-      A trip's start is its earliest CU/IU leg; its end is the latest EM/AD/EI leg reported back to plant.
-    </p>
-    <div id="statusArea"></div>
-  </div>
-
-  <div class="ttat-app" id="app">
-    <div class="ttat-toolbar">
-      <div class="ttat-tabs">
-        <button class="ttat-tab active" data-panel="overview">Overview</button>
-        <button class="ttat-tab" data-panel="origin">By Origin</button>
-        <button class="ttat-tab" data-panel="carrier">By Carrier</button>
-        <button class="ttat-tab" data-panel="tripLog">Trip Log</button>
-      </div>
-      <div style="display:flex;gap:14px;align-items:center;">
-        <button class="ttat-reset-link" id="resetBtn">Upload a different file</button>
-        <button class="ttat-download-btn" id="downloadBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M5 19h14"/></svg>
-          Download report (.xlsx)
-        </button>
-      </div>
-    </div>
-
-    <!-- OVERVIEW -->
-    <div class="ttat-panel active" id="panel-overview">
-      <div class="ttat-kpi-row" id="kpiRow"></div>
-      <div class="ttat-card">
-        <p class="ttat-card-title ttat-display">TAT distribution</p>
-        <p class="ttat-card-sub">Number of trips per turnaround-time band, hours from plant exit to plant return.</p>
-        <div class="ttat-chart-wrap"><canvas id="chartDist"></canvas></div>
-      </div>
-    </div>
-
-    <!-- BY ORIGIN -->
-    <div class="ttat-panel" id="panel-origin">
-      <div class="ttat-card">
-        <p class="ttat-card-title ttat-display">Average TAT by origin</p>
-        <p class="ttat-card-sub">Top origins by trip volume. Click a bar or a row to filter the Trip Log.</p>
-        <div class="ttat-chart-wrap"><canvas id="chartOrigin"></canvas></div>
-      </div>
-      <div class="ttat-card">
-        <div class="ttat-table-scroll">
-          <table class="ttat-table" id="originTable">
-            <thead><tr><th data-key="name">Origin</th><th data-key="count">Trips</th><th data-key="avg">Avg TAT (hrs)</th><th data-key="median">Median TAT (hrs)</th></tr></thead>
-            <tbody></tbody>
-          </table>
+<div class="container">
+    <!-- ===== HEADER ===== -->
+    <div class="header">
+        <div class="header-left">
+            <span class="header-logo">📊</span>
+            <div>
+                <h1>TRANSIT TAT DASHBOARD</h1>
+                <div class="subtitle">Logistics Performance Analytics | Transit Time &amp; SLA Monitoring</div>
+            </div>
         </div>
-      </div>
+        <div class="header-right">
+            <div><span class="badge-count" id="processedCount">0</span> trips processed</div>
+            <div>Last updated: <span id="lastUpdated">-</span></div>
+        </div>
     </div>
 
-    <!-- BY CARRIER -->
-    <div class="ttat-panel" id="panel-carrier">
-      <div class="ttat-card">
-        <p class="ttat-card-title ttat-display">Trips &amp; average TAT by carrier type</p>
-        <p class="ttat-card-sub">Dedicated / Pool / Market, classified from the forward leg's carrier code. Click a bar or row to filter the Trip Log.</p>
-        <div class="ttat-chart-wrap"><canvas id="chartCarrier"></canvas></div>
-      </div>
-      <div class="ttat-card">
-        <div class="ttat-table-scroll">
-          <table class="ttat-table" id="carrierTable">
-            <thead><tr><th data-key="name">Carrier Type</th><th data-key="count">Trips</th><th data-key="avg">Avg TAT (hrs)</th><th data-key="median">Median TAT (hrs)</th></tr></thead>
-            <tbody></tbody>
-          </table>
+    <!-- ===== UPLOAD SECTION (always visible, but data overlays) ===== -->
+    <div class="upload-section" id="uploadSection">
+        <div class="upload-icon">📊</div>
+        <h3>Upload Gate Report CSV</h3>
+        <p>Drag & drop your CSV file or click to browse</p>
+        <div>
+            <label class="upload-btn" for="fileInput">📁 Choose CSV File</label>
+            <button class="upload-btn secondary" id="loadSampleBtn">📋 Load Sample Data</button>
         </div>
-      </div>
+        <input type="file" id="fileInput" accept=".csv">
+        <div class="upload-info">Supports standard Gate Report format with Trip ID, Gate Dates, and SHIP_TYPE columns</div>
     </div>
 
-    <!-- TRIP LOG -->
-    <div class="ttat-panel" id="panel-tripLog">
-      <div class="ttat-card">
-        <div class="ttat-filters">
-          <input type="text" id="searchInput" placeholder="Search trip ID or vehicle number&hellip;">
-          <select id="originFilter"><option value="">All origins</option></select>
-          <select id="carrierFilter"><option value="">All carrier types</option></select>
-          <select id="statusFilter">
-            <option value="">All trips</option>
-            <option value="computed">TAT computed</option>
-            <option value="missing">Missing a leg</option>
-          </select>
+    <!-- ===== STATS GRID ===== -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card info">
+            <div class="label">Total Trips</div>
+            <div class="value" id="totalTrips">0</div>
         </div>
-        <div class="ttat-table-scroll">
-          <table class="ttat-table" id="tripTable">
+        <div class="stat-card success">
+            <div class="label">On Time</div>
+            <div class="value" id="onTimeTrips">0</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="label">Delayed</div>
+            <div class="value" id="delayedTrips">0</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="label">Avg Transit (hrs)</div>
+            <div class="value" id="avgTransit">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Missing Legs</div>
+            <div class="value" id="missingLegs">0</div>
+        </div>
+    </div>
+
+    <!-- ===== CONTROLS ===== -->
+    <div class="controls">
+        <select id="filterStatus">
+            <option value="all">All Status</option>
+            <option value="On Time">On Time</option>
+            <option value="Delayed">Delayed</option>
+            <option value="Cannot_Calculate">Cannot Calculate</option>
+        </select>
+
+        <select id="filterCarrier">
+            <option value="all">All Carrier Types</option>
+            <option value="Dedicated">Dedicated</option>
+            <option value="Pool">Pool</option>
+            <option value="Market">Market</option>
+        </select>
+
+        <select id="filterCustomer">
+            <option value="all">All Customer Types</option>
+            <option value="Customer">Customer</option>
+            <option value="Inter Unit">Inter Unit</option>
+            <option value="Other">Other</option>
+        </select>
+
+        <select id="filterTransporter">
+            <option value="all">All Transporters</option>
+        </select>
+
+        <select id="filterOrigin">
+            <option value="all">All Origins</option>
+        </select>
+
+        <input type="text" id="searchTrip" placeholder="🔍 Search Trip ID...">
+
+        <button onclick="applyFilters()">Apply</button>
+        <button onclick="resetFilters()" class="secondary">Reset</button>
+        <button onclick="exportCSV()" class="success">📥 Export</button>
+    </div>
+
+    <!-- ===== TABLE ===== -->
+    <div class="table-container">
+        <table>
             <thead>
-              <tr>
-                <th data-key="tripId">Trip ID</th>
-                <th data-key="vehicle">Vehicle</th>
-                <th data-key="origin">Origin</th>
-                <th data-key="carrierType">Carrier Type</th>
-                <th data-key="plantExit">Plant Exit</th>
-                <th data-key="plantReturn">Plant Return</th>
-                <th data-key="tatHours">TAT (hrs)</th>
-                <th data-key="note">Note</th>
-              </tr>
+                <tr>
+                    <th>Trip ID</th>
+                    <th>Transporter</th>
+                    <th>Origin</th>
+                    <th>Dispatch</th>
+                    <th>Arrival</th>
+                    <th>Transit (hrs)</th>
+                    <th>Status</th>
+                    <th>Carrier Type</th>
+                    <th>Customer Type</th>
+                    <th>Note</th>
+                </tr>
             </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div class="ttat-pagination">
-          <span id="pageInfo"></span>
-          <div class="ttat-pagination-controls">
-            <button id="prevPage">&larr; Prev</button>
-            <button id="nextPage">Next &rarr;</button>
-          </div>
-        </div>
-      </div>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="10" class="no-data">📂 Upload a CSV file or click "Load Sample Data" to begin analysis</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
-  </div>
-</div>
 
-<p class="ttat-footer">Processed entirely in your browser &mdash; the file never leaves this page.</p>
+    <!-- ===== SUMMARY CHARTS ===== -->
+    <div class="summary-section" id="summarySection" style="display:none;">
+        <h3>📈 Performance Summary</h3>
+        <div class="chart-container">
+            <div class="chart-box">
+                <h4>Delay Status Distribution</h4>
+                <div class="bar-chart" id="statusChart"></div>
+            </div>
+            <div class="chart-box">
+                <h4>Carrier Type Distribution</h4>
+                <div class="bar-chart" id="carrierChart"></div>
+            </div>
+            <div class="chart-box">
+                <h4>Customer Type Distribution</h4>
+                <div class="bar-chart" id="customerChart"></div>
+            </div>
+            <div class="chart-box">
+                <h4>Top Transporters</h4>
+                <div class="bar-chart" id="transporterChart"></div>
+            </div>
+            <div class="chart-box">
+                <h4>Top Origins</h4>
+                <div class="bar-chart" id="originChart"></div>
+            </div>
+        </div>
+        <div class="note">💡 Transit TAT = Return Leg (Gate Reported) - Forward Leg (Gate Out). SLA: 24 hours.</div>
+    </div>
+</div>
 
 <script>
-(function(){
-
-  /* ============ FIELD DETECTION ============ */
-  const FIELD_CANDIDATES = {
-    trip:      ['trip', 'trip id'],
-    vehicle:   ['vehicle'],
-    shipType:  ['ship_type', 'ship type'],
-    gateOut:   ['gate out date'],
-    gateRep:   ['gate reported date'],
-    origName:  ['orig_name', 'origin name'],
-    carrier:   ['carrier'],
-    load:      ['load']
-  };
-  const REQUIRED = ['trip', 'shipType', 'gateOut', 'gateRep'];
-  const FWD_TYPES = ['CU', 'IU'];
-  const RET_TYPES = ['EM', 'AD', 'EI'];
-
-  function detectFields(headers){
-    const norm = headers.map(h => (h||'').toString().trim().toLowerCase());
-    const map = {};
-    for (const field in FIELD_CANDIDATES){
-      for (const cand of FIELD_CANDIDATES[field]){
-        const idx = norm.indexOf(cand);
-        if (idx !== -1){ map[field] = headers[idx]; break; }
-      }
-    }
-    return map;
-  }
-
-  /* ============ DATE PARSING ============ */
-  function excelSerialToDate(serial){
-    const utcDays = Math.floor(serial - 25569);
-    const utcMs = utcDays * 86400 * 1000;
-    const base = new Date(utcMs);
-    const fractionalDay = serial - Math.floor(serial) + 1e-7;
-    let totalSeconds = Math.floor(86400 * fractionalDay);
-    const seconds = totalSeconds % 60; totalSeconds -= seconds;
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor(totalSeconds / 60) % 60;
-    return new Date(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hours, minutes, seconds);
-  }
-
-  function parseDateValue(v){
-    if (v === undefined || v === null || v === '') return null;
-    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
-    if (typeof v === 'number') return excelSerialToDate(v);
-    if (typeof v === 'string'){
-      const t = v.trim();
-      if (t === '') return null;
-      if (/^[0-9]+(\.[0-9]+)?$/.test(t)) return excelSerialToDate(Number(t));
-      const d = new Date(t);
-      return isNaN(d.getTime()) ? null : d;
-    }
-    return null;
-  }
-
-  /* ============ FILE PARSING ============ */
-  async function parseFile(file){
-    const buf = await file.arrayBuffer();
-    const sniff = new TextDecoder('utf-8').decode(buf.slice(0, 4096)).toLowerCase();
-    if (sniff.includes('<html') || sniff.includes('<table')){
-      const text = new TextDecoder('utf-8').decode(buf);
-      const doc = new DOMParser().parseFromString(text, 'text/html');
-      const table = doc.querySelector('table');
-      if (!table) throw new Error('No table found inside this file.');
-      const ws = XLSX.utils.table_to_sheet(table);
-      return XLSX.utils.sheet_to_json(ws, { defval: '', raw: true });
-    }
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (ext === 'csv'){
-      const text = new TextDecoder('utf-8').decode(buf);
-      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-      return parsed.data;
-    }
-    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    return XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
-  }
-
-  /* ============ COMPUTE ============ */
-  function classifyCarrier(carrier){
-    if (!carrier) return '';
-    const c = String(carrier).trim();
-    if (c === '') return '';
-    const last = c.slice(-1).toUpperCase();
-    if (last === 'D') return 'Dedicated';
-    if (last === 'P') return 'Pool';
-    return 'Market';
-  }
-
-  function computeTrips(rawRows, fmap){
-    const norm = rawRows.map(row => {
-      const shipType = (row[fmap.shipType] || '').toString().trim().toUpperCase();
-      let loadType = 'OTHER';
-      if (FWD_TYPES.includes(shipType)) loadType = 'FWD';
-      else if (RET_TYPES.includes(shipType)) loadType = 'RET';
-      return {
-        trip: (row[fmap.trip] !== undefined ? String(row[fmap.trip]).trim() : ''),
-        vehicle: fmap.vehicle ? row[fmap.vehicle] : '',
-        origName: fmap.origName ? row[fmap.origName] : '',
-        carrier: fmap.carrier ? row[fmap.carrier] : '',
-        loadType,
-        gateOut: parseDateValue(row[fmap.gateOut]),
-        gateRep: parseDateValue(row[fmap.gateRep])
-      };
-    }).filter(r => r.trip !== '' && r.trip.toLowerCase() !== 'nan');
-
-    const groups = new Map();
-    for (const r of norm){
-      if (!groups.has(r.trip)) groups.set(r.trip, []);
-      groups.get(r.trip).push(r);
-    }
-
-    const trips = [];
-    for (const [tripId, rows] of groups){
-      const fwd = rows.filter(r => r.loadType === 'FWD' && r.gateOut);
-      const ret = rows.filter(r => r.loadType === 'RET' && r.gateRep);
-      const fwdAll = rows.filter(r => r.loadType === 'FWD');
-      const retAll = rows.filter(r => r.loadType === 'RET');
-
-      let plantExit = null, origin = '', carrierType = '';
-      if (fwd.length){
-        fwd.sort((a,b) => a.gateOut - b.gateOut);
-        plantExit = fwd[0].gateOut;
-        origin = fwd[0].origName || '';
-        carrierType = classifyCarrier(fwd[0].carrier);
-      }
-      let plantReturn = null;
-      if (ret.length){
-        ret.sort((a,b) => b.gateRep - a.gateRep);
-        plantReturn = ret[0].gateRep;
-      }
-      const vehicle = (rows.find(r => r.vehicle) || {}).vehicle || '';
-
-      let tatHours = null;
-      if (fwdAll.length && retAll.length && plantExit && plantReturn){
-        tatHours = (plantReturn - plantExit) / 3600000;
-      }
-      let note = '';
-      if (fwdAll.length === 0 && retAll.length === 0) note = 'No forward or return leg found';
-      else if (fwdAll.length === 0) note = 'No forward (CU/IU) leg found';
-      else if (retAll.length === 0) note = 'No return leg found';
-
-      trips.push({
-        tripId, vehicle, origin, carrierType,
-        fwdCount: fwdAll.length, retCount: retAll.length,
-        plantExit, plantReturn, tatHours, note
-      });
-    }
-    trips.sort((a,b) => (parseFloat(a.tripId) || 0) - (parseFloat(b.tripId) || 0));
-    return trips;
-  }
-
-  /* ============ APP STATE ============ */
-  let TRIPS = [];
-  let FILTERED = [];
-  let PAGE = 1;
-  const PAGE_SIZE = 50;
-  let SORT = { table: null, key: null, dir: 1 };
-  let charts = {};
-  let rawFileName = 'Gate_Report';
-
-  const $ = sel => document.querySelector(sel);
-  const $$ = sel => Array.from(document.querySelectorAll(sel));
-
-  const fmtDate = d => d ? d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'2-digit', hour:'numeric', minute:'2-digit', second:'2-digit', hour12:true }) : '\u2014';
-  const fmtHrs = v => v === null || v === undefined ? '\u2014' : v.toFixed(2);
-
-  function median(arr){
-    if (!arr.length) return null;
-    const s = [...arr].sort((a,b)=>a-b);
-    const mid = Math.floor(s.length/2);
-    return s.length % 2 ? s[mid] : (s[mid-1]+s[mid])/2;
-  }
-  function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
-
-  /* ============ RENDER: OVERVIEW ============ */
-  function renderOverview(){
-    const computed = TRIPS.filter(t => t.tatHours !== null);
-    const tats = computed.map(t => t.tatHours);
-    const missingFwd = TRIPS.filter(t => t.fwdCount === 0).length;
-    const missingRet = TRIPS.filter(t => t.retCount === 0).length;
-
-    const kpis = [
-      { label: 'Total trips', value: TRIPS.length, cls:'' },
-      { label: 'TAT computed', value: computed.length, cls:'good' },
-      { label: 'Avg TAT (hrs)', value: fmtHrs(mean(tats)), cls:'accent' },
-      { label: 'Median TAT (hrs)', value: fmtHrs(median(tats)), cls:'accent' },
-      { label: 'Missing forward leg', value: missingFwd, cls: missingFwd ? 'bad' : '' },
-      { label: 'Missing return leg', value: missingRet, cls: missingRet ? 'bad' : '' }
-    ];
-    $('#kpiRow').innerHTML = kpis.map(k => `
-      <div class="ttat-kpi">
-        <p class="ttat-kpi-label">${k.label}</p>
-        <p class="ttat-kpi-value ${k.cls}">${k.value}</p>
-      </div>`).join('');
-
-    const bands = [
-      { label: '0\u20136h', min:0, max:6 }, { label: '6\u201312h', min:6, max:12 },
-      { label: '12\u201324h', min:12, max:24 }, { label: '24\u201348h', min:24, max:48 },
-      { label: '48\u201372h', min:48, max:72 }, { label: '72h+', min:72, max:Infinity }
-    ];
-    const counts = bands.map(b => tats.filter(v => v >= b.min && v < b.max).length);
-
-    drawChart('chartDist', 'bar', {
-      labels: bands.map(b=>b.label),
-      datasets: [{ label:'Trips', data: counts, backgroundColor:'#E2A33B', borderRadius:4 }]
-    }, { plugins:{legend:{display:false}} });
-  }
-
-  /* ============ RENDER: BY ORIGIN / CARRIER ============ */
-  function aggregateBy(getKey){
-    const counts = new Map();
-    for (const t of TRIPS){
-      const key = getKey(t) || '(blank)';
-      if (!counts.has(key)) counts.set(key, { name:key, count:0, tats:[] });
-      const g = counts.get(key);
-      g.count++;
-      if (t.tatHours !== null) g.tats.push(t.tatHours);
-    }
-    return Array.from(counts.values()).map(g => ({
-      name: g.name, count: g.count,
-      avg: mean(g.tats), median: median(g.tats)
-    })).sort((a,b) => b.count - a.count);
-  }
-
-  function renderOrigin(){
-    const data = aggregateBy(t => t.origin).filter(d => d.name !== '(blank)' || TRIPS.some(t=>!t.origin));
-    const top = data.slice(0, 12);
-    drawChart('chartOrigin', 'bar', {
-      labels: top.map(d=>d.name),
-      datasets: [{ label:'Avg TAT (hrs)', data: top.map(d=> d.avg===null?0:+d.avg.toFixed(2)), backgroundColor:'#3C7A5D', borderRadius:4 }]
-    }, {
-      indexAxis:'y',
-      plugins:{legend:{display:false}},
-      onClick: (evt, els) => { if (els.length){ const idx=els[0].index; applyFilter('origin', top[idx].name); } }
-    });
-    renderAggTable('#originTable tbody', data, 'origin');
-    LAST_ORIGIN_DATA = data;
-  }
-
-  function renderCarrier(){
-    const data = aggregateBy(t => t.carrierType);
-    drawChart('chartCarrier', 'bar', {
-      labels: data.map(d=>d.name || '(blank)'),
-      datasets: [
-        { label:'Trips', data: data.map(d=>d.count), backgroundColor:'#232C36', borderRadius:4, yAxisID:'y' },
-        { label:'Avg TAT (hrs)', data: data.map(d=> d.avg===null?0:+d.avg.toFixed(2)), backgroundColor:'#E2A33B', borderRadius:4, yAxisID:'y1' }
-      ]
-    }, {
-      scales:{
-        y:{ position:'left', title:{display:true,text:'Trips'} },
-        y1:{ position:'right', title:{display:true,text:'Avg TAT (hrs)'}, grid:{drawOnChartArea:false} }
-      },
-      onClick: (evt, els) => { if (els.length){ const idx=els[0].index; applyFilter('carrierType', data[idx].name); } }
-    });
-    renderAggTable('#carrierTable tbody', data, 'carrierType');
-    LAST_CARRIER_DATA = data;
-  }
-
-  let LAST_ORIGIN_DATA = [];
-  let LAST_CARRIER_DATA = [];
-  let AGG_SORT = { table: null, key: 'count', dir: -1 };
-
-  function sortAggData(data, key, dir){
-    const sorted = [...data];
-    sorted.sort((a,b) => {
-      let av = a[key], bv = b[key];
-      if (av === null) av = -Infinity; if (bv === null) bv = -Infinity;
-      if (typeof av === 'string') av = av.toLowerCase();
-      if (typeof bv === 'string') bv = bv.toLowerCase();
-      if (av < bv) return -1*dir; if (av > bv) return 1*dir; return 0;
-    });
-    return sorted;
-  }
-
-  function renderAggTable(sel, data, filterKey){
-    $(sel).innerHTML = data.map(d => `
-      <tr class="clickable" data-filterkey="${filterKey}" data-filterval="${escapeAttr(d.name)}">
-        <td>${escapeHtml(d.name) || '\u2014'}</td>
-        <td>${d.count}</td>
-        <td>${fmtHrs(d.avg)}</td>
-        <td>${fmtHrs(d.median)}</td>
-      </tr>`).join('');
-    $$(sel + ' tr').forEach(tr => {
-      tr.addEventListener('click', () => applyFilter(tr.dataset.filterkey, tr.dataset.filterval));
-    });
-  }
-
-  function applyFilter(key, val){
-    if (key === 'origin') $('#originFilter').value = val;
-    if (key === 'carrierType') $('#carrierFilter').value = val;
-    setActiveTab('tripLog');
-    PAGE = 1;
-    filterTrips();
-  }
-
-  /* ============ CHART HELPER ============ */
-  function drawChart(canvasId, type, data, extraOptions){
-    if (typeof Chart === 'undefined') return;
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
-    if (charts[canvasId]) charts[canvasId].destroy();
-    charts[canvasId] = new Chart(ctx, {
-      type, data,
-      options: Object.assign({
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ labels:{ font:{ family:'IBM Plex Sans' } } } },
-        scales: type==='bar' ? { x:{ ticks:{ font:{family:'IBM Plex Sans', size:11} } }, y:{ ticks:{ font:{family:'IBM Plex Sans', size:11} } } } : {}
-      }, extraOptions || {})
-    });
-  }
-
-  /* ============ TRIP LOG ============ */
-  function populateFilterOptions(){
-    const origins = [...new Set(TRIPS.map(t=>t.origin).filter(Boolean))].sort();
-    const carriers = [...new Set(TRIPS.map(t=>t.carrierType).filter(Boolean))].sort();
-    $('#originFilter').innerHTML = '<option value="">All origins</option>' + origins.map(o=>`<option value="${escapeAttr(o)}">${escapeHtml(o)}</option>`).join('');
-    $('#carrierFilter').innerHTML = '<option value="">All carrier types</option>' + carriers.map(c=>`<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
-  }
-
-  function filterTrips(){
-    const q = $('#searchInput').value.trim().toLowerCase();
-    const origin = $('#originFilter').value;
-    const carrier = $('#carrierFilter').value;
-    const status = $('#statusFilter').value;
-    FILTERED = TRIPS.filter(t => {
-      if (q && !(String(t.tripId).toLowerCase().includes(q) || String(t.vehicle).toLowerCase().includes(q))) return false;
-      if (origin && t.origin !== origin) return false;
-      if (carrier && t.carrierType !== carrier) return false;
-      if (status === 'computed' && t.tatHours === null) return false;
-      if (status === 'missing' && t.tatHours !== null) return false;
-      return true;
-    });
-    if (SORT.table === 'trip' && SORT.key) sortArray(FILTERED, SORT.key, SORT.dir);
-    renderTripTable();
-  }
-
-  function sortArray(arr, key, dir){
-    arr.sort((a,b) => {
-      let av = a[key], bv = b[key];
-      if (av instanceof Date) av = av.getTime(); if (bv instanceof Date) bv = bv.getTime();
-      if (av === null || av === undefined) av = -Infinity;
-      if (bv === null || bv === undefined) bv = -Infinity;
-      if (typeof av === 'string') av = av.toLowerCase();
-      if (typeof bv === 'string') bv = bv.toLowerCase();
-      if (av < bv) return -1*dir; if (av > bv) return 1*dir; return 0;
-    });
-  }
-
-  function renderTripTable(){
-    const totalPages = Math.max(1, Math.ceil(FILTERED.length / PAGE_SIZE));
-    if (PAGE > totalPages) PAGE = totalPages;
-    const start = (PAGE-1) * PAGE_SIZE;
-    const pageRows = FILTERED.slice(start, start + PAGE_SIZE);
-
-    $('#tripTable tbody').innerHTML = pageRows.map(t => `
-      <tr>
-        <td>${escapeHtml(t.tripId)}</td>
-        <td>${escapeHtml(t.vehicle) || '\u2014'}</td>
-        <td>${escapeHtml(t.origin) || '\u2014'}</td>
-        <td>${t.carrierType ? `<span class="ttat-pill ${t.carrierType.toLowerCase()}">${t.carrierType}</span>` : '<span class="ttat-pill blank">\u2014</span>'}</td>
-        <td>${fmtDate(t.plantExit)}</td>
-        <td>${fmtDate(t.plantReturn)}</td>
-        <td class="ttat-tat-num">${fmtHrs(t.tatHours)}</td>
-        <td>${t.note ? `<span class="ttat-note-tag">${escapeHtml(t.note)}</span>` : ''}</td>
-      </tr>`).join('');
-
-    $('#pageInfo').textContent = `${FILTERED.length} trip${FILTERED.length===1?'':'s'} \u2014 page ${PAGE} of ${totalPages}`;
-    $('#prevPage').disabled = PAGE <= 1;
-    $('#nextPage').disabled = PAGE >= totalPages;
-  }
-
-  /* ============ UTIL ============ */
-  function escapeHtml(s){
-    if (s === null || s === undefined) return '';
-    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-  function escapeAttr(s){ return escapeHtml(s); }
-
-  /* ============ TABS ============ */
-  function setActiveTab(name){
-    $$('.ttat-tab').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
-    $$('.ttat-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
-  }
-  $$('.ttat-tab').forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.dataset.panel)));
-
-  /* ============ SORT HANDLERS ============ */
-  $('#originTable thead').addEventListener('click', e => {
-    const th = e.target.closest('th'); if (!th) return;
-    handleAggSort(th, '#originTable', () => LAST_ORIGIN_DATA);
-  });
-  $('#carrierTable thead').addEventListener('click', e => {
-    const th = e.target.closest('th'); if (!th) return;
-    handleAggSort(th, '#carrierTable', () => LAST_CARRIER_DATA);
-  });
-  function handleAggSort(th, tableSel, sourceGetter, renderTarget){
-    const key = th.dataset.key;
-    AGG_SORT.dir = (AGG_SORT.table === tableSel && AGG_SORT.key === key) ? -AGG_SORT.dir : -1;
-    AGG_SORT.table = tableSel; AGG_SORT.key = key;
-    document.querySelectorAll(tableSel + ' th').forEach(h => h.classList.toggle('sorted', h === th));
-    const sorted = sortAggData(sourceGetter(), key, AGG_SORT.dir);
-    const filterKey = tableSel === '#originTable' ? 'origin' : 'carrierType';
-    renderAggTable(tableSel + ' tbody', sorted, filterKey);
-  }
-
-  $('#tripTable thead').addEventListener('click', e => {
-    const th = e.target.closest('th'); if (!th) return;
-    const key = th.dataset.key;
-    SORT.dir = (SORT.table==='trip' && SORT.key===key) ? -SORT.dir : 1;
-    SORT.table = 'trip'; SORT.key = key;
-    $$('#tripTable th').forEach(h => h.classList.toggle('sorted', h===th));
-    sortArray(FILTERED, key, SORT.dir);
-    PAGE = 1;
-    renderTripTable();
-  });
-
-  /* ============ FILTER EVENTS ============ */
-  ['#searchInput','#originFilter','#carrierFilter','#statusFilter'].forEach(sel => {
-    $(sel).addEventListener('input', () => { PAGE = 1; filterTrips(); });
-    $(sel).addEventListener('change', () => { PAGE = 1; filterTrips(); });
-  });
-  $('#prevPage').addEventListener('click', () => { if (PAGE>1){ PAGE--; renderTripTable(); } });
-  $('#nextPage').addEventListener('click', () => { PAGE++; renderTripTable(); });
-
-  /* ============ MAIN PROCESS ============ */
-  async function handleFile(file){
-    rawFileName = file.name.replace(/\.[^.]+$/, '');
-    setStatus('processing', 'Reading ' + file.name + '&hellip;');
-    try {
-      const rows = await parseFile(file);
-      if (!rows.length) throw new Error('The file has no data rows.');
-      const headers = Object.keys(rows[0]);
-      const fmap = detectFields(headers);
-      const missing = REQUIRED.filter(f => !fmap[f]);
-      if (missing.length){
-        setStatus('error', 'Could not find required column(s): ' +
-          missing.map(m => FIELD_CANDIDATES[m][0]).join(', ') +
-          '. Check the file has these headers and try again.');
-        return;
-      }
-      const optionalMissing = ['vehicle','origName','carrier'].filter(f => !fmap[f]);
-      TRIPS = computeTrips(rows, fmap);
-      window.__ttatRawRows = rows;
-      window.__ttatFieldMap = fmap;
-
-      if (!TRIPS.length){
-        setStatus('error', 'No rows with a Trip ID were found, so no trips could be built.');
-        return;
-      }
-
-      let warn = '';
-      if (optionalMissing.length){
-        const names = optionalMissing.map(f => FIELD_CANDIDATES[f][0]).join(', ');
-        warn = `<div class="ttat-banner warn">Column(s) not found: ${names}. Those fields will show as blank in the report.</div>`;
-      }
-      $('#statusArea').innerHTML = warn;
-
-      populateFilterOptions();
-      renderOverview();
-      renderOrigin();
-      renderCarrier();
-      FILTERED = TRIPS.slice();
-      renderTripTable();
-
-      $('#app').classList.add('show');
-      $('#barrier').classList.add('raised');
-      $('#barrierStatus').textContent = 'Gate open \u2014 ' + TRIPS.length + ' trips loaded';
-      $('#barrierStatus').classList.add('open');
-    } catch (err){
-      console.error(err);
-      setStatus('error', 'Could not read this file: ' + err.message);
-    }
-  }
-
-  function setStatus(kind, html){
-    if (kind === 'processing'){
-      $('#statusArea').innerHTML = `<div class="ttat-status-line"><span class="ttat-spinner"></span> ${html}</div>`;
-    } else if (kind === 'error'){
-      $('#statusArea').innerHTML = `<div class="ttat-banner error">${html}</div>`;
-    } else {
-      $('#statusArea').innerHTML = '';
-    }
-  }
-
-  /* ============ UPLOAD WIRING ============ */
-  const dropzone = $('#dropzone');
-  const fileInput = $('#fileInput');
-  dropzone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
-  ['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
-  ['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
-  dropzone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
-
-  $('#resetBtn').addEventListener('click', () => {
-    TRIPS = []; FILTERED = [];
-    $('#app').classList.remove('show');
-    $('#barrier').classList.remove('raised');
-    $('#barrierStatus').textContent = 'Gate closed \u2014 awaiting file';
-    $('#barrierStatus').classList.remove('open');
-    setStatus('idle','');
-    fileInput.value = '';
-  });
-
-  /* ============ DOWNLOAD ============ */
-  function buildOutputWorkbook(){
-    const wb = XLSX.utils.book_new();
-
-    // Trip TAT sheet
-    const tripHeader = ['Trip ID','Vehicle','Origin (Forward Load)','Carrier Type (Forward Load)',
-      'Forward Load Count (CU/IU)','Return Load Count (EM/AD/EI)',
-      'Plant Exit - Gate Out Date','Plant Return - Gate Reported Date','Transit TAT (Hours)','Note'];
-    const tripAoa = [tripHeader];
-    TRIPS.forEach(t => {
-      tripAoa.push([
-        isFinite(+t.tripId) ? +t.tripId : t.tripId,
-        t.vehicle || '',
-        t.origin || '',
-        t.carrierType || '',
-        t.fwdCount, t.retCount,
-        t.plantExit || '',
-        t.plantReturn || '',
-        t.tatHours === null ? '' : +t.tatHours.toFixed(2),
-        t.note || ''
-      ]);
-    });
-    const wsTrip = XLSX.utils.aoa_to_sheet(tripAoa);
-    applyDateFormat(wsTrip, tripAoa.length, [6,7], 'dd-mmm-yy hh:mm:ss AM/PM');
-    wsTrip['!cols'] = [{wch:12},{wch:14},{wch:20},{wch:18},{wch:12},{wch:12},{wch:24},{wch:24},{wch:14},{wch:26}];
-    XLSX.utils.book_append_sheet(wb, wsTrip, 'Trip TAT');
-
-    // Origin summary
-    const originData = aggregateBy(t => t.origin);
-    const originAoa = [['Origin','Trips','Avg TAT (Hours)','Median TAT (Hours)']];
-    originData.forEach(d => originAoa.push([d.name, d.count, d.avg===null?'':+d.avg.toFixed(2), d.median===null?'':+d.median.toFixed(2)]));
-    const wsOrigin = XLSX.utils.aoa_to_sheet(originAoa);
-    wsOrigin['!cols'] = [{wch:22},{wch:10},{wch:16},{wch:18}];
-    XLSX.utils.book_append_sheet(wb, wsOrigin, 'Origin Summary');
-
-    // Carrier summary
-    const carrierData = aggregateBy(t => t.carrierType);
-    const carrierAoa = [['Carrier Type','Trips','Avg TAT (Hours)','Median TAT (Hours)']];
-    carrierData.forEach(d => carrierAoa.push([d.name, d.count, d.avg===null?'':+d.avg.toFixed(2), d.median===null?'':+d.median.toFixed(2)]));
-    const wsCarrier = XLSX.utils.aoa_to_sheet(carrierAoa);
-    wsCarrier['!cols'] = [{wch:16},{wch:10},{wch:16},{wch:18}];
-    XLSX.utils.book_append_sheet(wb, wsCarrier, 'Carrier Summary');
-
-    // Raw data (as uploaded) + LoadType helper
-    const raw = window.__ttatRawRows || [];
-    const fmap = window.__ttatFieldMap || {};
-    if (raw.length){
-      const headers = Object.keys(raw[0]);
-      const rawAoa = [headers.concat(['LoadType'])];
-      raw.forEach(row => {
-        const shipType = (row[fmap.shipType] || '').toString().trim().toUpperCase();
-        let lt = 'OTHER';
-        if (FWD_TYPES.includes(shipType)) lt = 'FWD'; else if (RET_TYPES.includes(shipType)) lt = 'RET';
-        rawAoa.push(headers.map(h => row[h]).concat([lt]));
-      });
-      const wsRaw = XLSX.utils.aoa_to_sheet(rawAoa);
-      XLSX.utils.book_append_sheet(wb, wsRaw, 'Gate Data');
-    }
-
-    // Assumptions
-    const notes = [
-      ['Transit TAT Calculation \u2014 Method & Assumptions'],
-      [''],
-      ['1. Trips are grouped by Trip ID. Rows with a blank Trip ID are excluded.'],
-      ['2. Forward leg: SHIP_TYPE = CU or IU. TAT start = Gate Out Date of the earliest such leg.'],
-      ['3. Return leg: SHIP_TYPE = EM, AD, or EI. TAT end = Gate Reported Date of the latest such leg.'],
-      ['4. Transit TAT (Hours) = Plant Return \u2212 Plant Exit, in hours.'],
-      ['5. Origin = ORIG_NAME of the earliest forward leg only (not the return leg).'],
-      ['6. Carrier Type = derived from the Carrier code of that same forward leg: ends "D" \u2192 Dedicated, ends "P" \u2192 Pool, else \u2192 Market.'],
-      ['7. Trips missing a forward or return leg are flagged in the Note column rather than removed.'],
-      [''],
-      ['Generated by Transit TAT Control \u2014 processed client-side in the browser.']
-    ];
-    const wsNotes = XLSX.utils.aoa_to_sheet(notes);
-    wsNotes['!cols'] = [{wch:110}];
-    XLSX.utils.book_append_sheet(wb, wsNotes, 'Assumptions & Method');
-
-    return wb;
-  }
-
-  function applyDateFormat(ws, nRows, colIdxs, fmt){
-    for (let r = 1; r < nRows; r++){
-      colIdxs.forEach(c => {
-        const addr = XLSX.utils.encode_cell({ r, c });
-        if (ws[addr] && ws[addr].v instanceof Date){
-          ws[addr].z = fmt;
+    // ================================================================
+    // STEP 1: SAMPLE DATA GENERATOR (Valid Dates Only)
+    // ================================================================
+    function generateSampleData() {
+        const sampleData = [];
+        
+        // Define realistic data pools
+        const origins = ['Urwade Depot', 'Wada', 'Aurangabad Depot', 'Pirangut', 'Goa', 'HCCBPL-Bhiwandi Depot'];
+        const destinations = ['HMM6', 'HDP2', 'HDN3', 'HMP1', 'HMY1', 'HDNA'];
+        const transporters = [
+            'SCOOTSY LOGISTICS', 'TARA ENTERPRISES', 'SHREE NATH SERVICES', 'MAHAVIR ENTERPRISE',
+            'SUPER MARKET GROCERY', 'ROSHAN ENTERPRISES', 'BALAJI DISTRIBUTORS', 'SAI ENTERPRISES',
+            'AGRO FOOD', 'CONNY ENTERPRISES', 'DAMODAR AGENCIES', 'SHREE GANESH MARKETING',
+            'BRONSON MARKETING', 'PUSHPANJALI STORES', 'SEAGULL MARKETING', 'TANISH WINE & SPIRIT',
+            'SNOW AGENCIES', 'ELESBAO PEREIRA RESOURCES', 'ACRUX MARKETING', 'ANANDI SALES',
+            'JAY BADA GANESH', 'ZEPTO LIMITED', 'AVENUE SUPERMARTS', 'METRO ENTERPRISES',
+            'UMADEVI DISTRIBUTOR', 'PITASHREE SALES', 'NANDINI ENTERPRISES', 'SHRAVAN ENTERPRISES'
+        ];
+        const carriers = [
+            '9000129202_F2_D', '9000101956_F2_P', '9000124345_F3_M', '9000126872_F3_D',
+            '9000102216_F2_M', '9000100097_F2_P', '9000131151_F2_P', '9000124024_F2_D'
+        ];
+        const forwardTypes = ['CU', 'IU'];
+        const returnTypes = ['EM', 'AD', 'EI'];
+        const drivers = ['RAM KISHAN', 'SAMBHAJI', 'DATTATRAY', 'SOMESHWAR', 'MAHADEO', 'RAJENDRA',
+                        'SANTOSH', 'BIRU KUMAR', 'ARVIND SINGH', 'MANOJ KUMAR', 'PRAVIN KALEKAR',
+                        'ANAND KOTHARE', 'SUNIL DAMLE', 'VIKAS PATIL', 'GANESH', 'ARSHAD ALI'];
+        
+        // Use a fixed date range
+        const startDate = new Date('2026-07-01T06:00:00');
+        const endDate = new Date('2026-07-24T18:00:00');
+        
+        let tripCounter = 0;
+        let maxAttempts = 2000;
+        const usedTripIds = new Set();
+        
+        while (tripCounter < 300 && maxAttempts > 0) {
+            maxAttempts--;
+            
+            let tripId;
+            do {
+                tripId = String(Math.floor(Math.random() * 9000000) + 1000000);
+            } while (usedTripIds.has(tripId));
+            usedTripIds.add(tripId);
+            
+            const origin = origins[Math.floor(Math.random() * origins.length)];
+            const destination = destinations[Math.floor(Math.random() * destinations.length)];
+            const transporter = transporters[Math.floor(Math.random() * transporters.length)];
+            const carrier = carriers[Math.floor(Math.random() * carriers.length)];
+            const forwardType = forwardTypes[Math.floor(Math.random() * forwardTypes.length)];
+            const returnType = returnTypes[Math.floor(Math.random() * returnTypes.length)];
+            const driver = drivers[Math.floor(Math.random() * drivers.length)];
+            
+            // Generate forward leg date (Gate Out) - ensure valid date
+            const forwardDate = new Date(startDate.getTime() + Math.random() * (endDate.getTime() - startDate.getTime()));
+            
+            // Ensure forward date is within valid range
+            if (forwardDate < startDate || forwardDate > endDate) continue;
+            
+            // Generate return leg date (Gate Reported - must be after forward)
+            const minReturn = new Date(forwardDate.getTime() + 2 * 3600000); // Minimum 2 hours later
+            const maxReturn = new Date(forwardDate.getTime() + 72 * 3600000); // Maximum 72 hours later
+            const returnDate = new Date(minReturn.getTime() + Math.random() * (maxReturn.getTime() - minReturn.getTime()));
+            
+            // Ensure return date is within valid range and after forward date
+            if (returnDate <= forwardDate || returnDate > endDate) continue;
+            
+            // Calculate transit time
+            const transitHours = (returnDate - forwardDate) / (1000 * 60 * 60);
+            
+            // Skip if transit is too short or too long
+            if (transitHours < 1 || transitHours > 72) continue;
+            
+            // Generate all other dates based on forward and return dates
+            const forwardGateIn = new Date(forwardDate.getTime() - (Math.random() * 4 + 1) * 3600000);
+            const forwardDmcIn = new Date(forwardGateIn.getTime() + (Math.random() * 2) * 3600000);
+            const forwardDmcOut = new Date(forwardDmcIn.getTime() + (Math.random() * 1.5 + 0.5) * 3600000);
+            
+            const returnGateIn = new Date(returnDate.getTime() - (Math.random() * 4 + 1) * 3600000);
+            const returnDmcIn = new Date(returnGateIn.getTime() + (Math.random() * 2) * 3600000);
+            const returnDmcOut = new Date(returnDmcIn.getTime() + (Math.random() * 1.5 + 0.5) * 3600000);
+            
+            // Vehicle number
+            const vehicle = 'MH' + String(Math.floor(Math.random() * 50) + 1).padStart(2, '0') +
+                           ['AB','CD','EF','GH','JK','LM','NP','QR','ST','UV','WX','YZ'][Math.floor(Math.random()*12)] +
+                           String(Math.floor(Math.random() * 9000) + 1000);
+            
+            const sapNumber = String(9000000 + sampleData.length + 1);
+            const transId = 'T' + String(Math.floor(Math.random() * 90000000) + 10000000);
+            
+            // Add forward leg
+            sampleData.push({
+                'Load': sampleData.length + 1,
+                'SAP Shipment Number': sapNumber,
+                'SAP Created Date': formatDate(forwardGateIn),
+                'Trip': tripId,
+                'Origin': origin,
+                'Destination': destination,
+                'Vehicle': vehicle,
+                'Driver': driver,
+                'Vehicle Assigned Date': formatDate(new Date(forwardGateIn.getTime() - Math.random() * 12 * 3600000)),
+                'Gate In Date': formatDate(forwardGateIn),
+                'Gate Out Date': formatDate(forwardDate),
+                'DMC In Date': formatDate(forwardDmcIn),
+                'DMC Out Date': formatDate(forwardDmcOut),
+                'DMC Status': 'Pass',
+                'DMC Reason': '',
+                'DMC Finish': 'Y',
+                'Transaction ID': transId,
+                'SAP Eligible': 'Y',
+                'Sent to SAP': Math.random() > 0.2 ? 'Y' : '',
+                'Sent Gate Conf': Math.random() > 0.2 ? 'Y' : '',
+                'ELigible for Gate Conf': Math.random() > 0.2 ? 'Y' : '',
+                'Gate Reported Date': formatDate(forwardDate),
+                'GR_YN': 'Y',
+                'GI_YN': 'Y',
+                'GO_YN': 'Y',
+                'GR_TM': formatTime(forwardDate),
+                'GI_TM': formatTime(forwardGateIn),
+                'GO_TM': formatTime(forwardDate),
+                'Carrier': carrier,
+                'Current SIte': destination,
+                'DMC_TM': formatTime(forwardDmcOut),
+                'Overall Status': 'Success',
+                'Stop Seq': 1,
+                'Stop Type': 'ST_PICKONLY',
+                'Detention': (Math.random() * 10).toFixed(4),
+                'SAP File Name': `OUTB_SAP_SHPM_CREATE_${forwardType}_${tripId}_${formatFileDate(forwardDate)}.xml`,
+                'Gate Confirmation File Name': `OUTB_GATEOUT_CONFIRMATION_${tripId}_${formatFileDate(forwardDate)}.xml`,
+                'Processing Flag': '0',
+                'ORIG_NAME': origin,
+                'DEST_NAME': destination,
+                'CARR_NAME': transporter,
+                'SHIPPER_FLAG': '',
+                'ADHOC_REASON': '',
+                'ADHOC_YN': Math.random() > 0.7 ? 'Y' : '',
+                'ALLOW_GI': 'Y',
+                'DET_YN': Math.random() > 0.5 ? 'Y' : '',
+                'OPT_LOCK_ID': Math.floor(Math.random() * 10) + 1,
+                'SHIP_TYPE': forwardType,
+                'GATE_EXIT_DTT': formatDate(new Date(forwardDate.getTime() + Math.random() * 2 * 3600000)),
+                'GE_YN': Math.random() > 0.3 ? 'Y' : '',
+                'IS_DMCL': Math.random() > 0.5 ? 'Y' : '',
+                'LOAD_STOPS': Math.floor(Math.random() * 5) + 1,
+                'DMCL_LOC': '',
+                'LOAD_SEQ': Math.floor(Math.random() * 5) + 1,
+                'REGATE_YN': Math.random() > 0.8 ? 'Y' : '',
+                'REGATE_FROM_LOAD': '',
+                'VEHICLE_CHANGE_YN': Math.random() > 0.9 ? 'Y' : '',
+                'SAPCRT_SENT_DTT': formatDate(new Date(forwardGateIn.getTime() + Math.random() * 2 * 3600000)),
+                'SAPUPD_SENT_DTT': formatDate(new Date(forwardDate.getTime() + Math.random() * 2 * 3600000)),
+                'SAP_GENERATE_BEFORE_GR': Math.random() > 0.5 ? 'Y' : ''
+            });
+            
+            // Add return leg
+            sampleData.push({
+                'Load': sampleData.length + 1,
+                'SAP Shipment Number': String(9000000 + sampleData.length + 1),
+                'SAP Created Date': formatDate(returnGateIn),
+                'Trip': tripId,
+                'Origin': destination,
+                'Destination': origin,
+                'Vehicle': vehicle,
+                'Driver': driver,
+                'Vehicle Assigned Date': formatDate(new Date(returnGateIn.getTime() - Math.random() * 12 * 3600000)),
+                'Gate In Date': formatDate(returnGateIn),
+                'Gate Out Date': formatDate(returnDate),
+                'DMC In Date': formatDate(returnDmcIn),
+                'DMC Out Date': formatDate(returnDmcOut),
+                'DMC Status': 'Pass',
+                'DMC Reason': '',
+                'DMC Finish': 'Y',
+                'Transaction ID': 'T' + String(Math.floor(Math.random() * 90000000) + 10000000),
+                'SAP Eligible': 'Y',
+                'Sent to SAP': Math.random() > 0.2 ? 'Y' : '',
+                'Sent Gate Conf': Math.random() > 0.2 ? 'Y' : '',
+                'ELigible for Gate Conf': Math.random() > 0.2 ? 'Y' : '',
+                'Gate Reported Date': formatDate(returnDate),
+                'GR_YN': 'Y',
+                'GI_YN': 'Y',
+                'GO_YN': 'Y',
+                'GR_TM': formatTime(returnDate),
+                'GI_TM': formatTime(returnGateIn),
+                'GO_TM': formatTime(returnDate),
+                'Carrier': carrier,
+                'Current SIte': origin,
+                'DMC_TM': formatTime(returnDmcOut),
+                'Overall Status': 'Success',
+                'Stop Seq': 2,
+                'Stop Type': 'ST_DROPONLY',
+                'Detention': (Math.random() * 10).toFixed(4),
+                'SAP File Name': `OUTB_SAP_SHPM_CREATE_${returnType}_${tripId}_${formatFileDate(returnDate)}.xml`,
+                'Gate Confirmation File Name': `OUTB_GATEOUT_CONFIRMATION_${tripId}_${formatFileDate(returnDate)}.xml`,
+                'Processing Flag': '0',
+                'ORIG_NAME': destination,
+                'DEST_NAME': origin,
+                'CARR_NAME': transporter,
+                'SHIPPER_FLAG': '',
+                'ADHOC_REASON': '',
+                'ADHOC_YN': Math.random() > 0.7 ? 'Y' : '',
+                'ALLOW_GI': 'Y',
+                'DET_YN': Math.random() > 0.5 ? 'Y' : '',
+                'OPT_LOCK_ID': Math.floor(Math.random() * 10) + 1,
+                'SHIP_TYPE': returnType,
+                'GATE_EXIT_DTT': formatDate(new Date(returnDate.getTime() + Math.random() * 2 * 3600000)),
+                'GE_YN': Math.random() > 0.3 ? 'Y' : '',
+                'IS_DMCL': Math.random() > 0.5 ? 'Y' : '',
+                'LOAD_STOPS': Math.floor(Math.random() * 5) + 1,
+                'DMCL_LOC': '',
+                'LOAD_SEQ': Math.floor(Math.random() * 5) + 1,
+                'REGATE_YN': Math.random() > 0.8 ? 'Y' : '',
+                'REGATE_FROM_LOAD': '',
+                'VEHICLE_CHANGE_YN': Math.random() > 0.9 ? 'Y' : '',
+                'SAPCRT_SENT_DTT': formatDate(new Date(returnGateIn.getTime() + Math.random() * 2 * 3600000)),
+                'SAPUPD_SENT_DTT': formatDate(new Date(returnDate.getTime() + Math.random() * 2 * 3600000)),
+                'SAP_GENERATE_BEFORE_GR': Math.random() > 0.5 ? 'Y' : ''
+            });
+            
+            tripCounter++;
         }
-      });
+        
+        return sampleData;
     }
-  }
 
-  $('#downloadBtn').addEventListener('click', () => {
-    const wb = buildOutputWorkbook();
-    XLSX.writeFile(wb, rawFileName + '_Transit_TAT_Report.xlsx');
-  });
+    function formatDate(date) {
+        if (!date || isNaN(date.getTime())) return '';
+        const d = new Date(date);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = String(d.getFullYear()).slice(-2);
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const seconds = String(d.getSeconds()).padStart(2, '0');
+        return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+    }
 
-})();
+    function formatFileDate(date) {
+        if (!date || isNaN(date.getTime())) return '';
+        const d = new Date(date);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = String(d.getFullYear());
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const seconds = String(d.getSeconds()).padStart(2, '0');
+        return `${day}${month}${year}${hours}${minutes}${seconds}`;
+    }
+
+    function formatTime(date) {
+        if (!date || isNaN(date.getTime())) return '';
+        const d = new Date(date);
+        return String(d.getHours()).padStart(2, '0') + ':' + 
+               String(d.getMinutes()).padStart(2, '0') + ':' + 
+               String(d.getSeconds()).padStart(2, '0');
+    }
+
+    // ================================================================
+    // STEP 2 – Column Standardization
+    // ================================================================
+    function standardizeColumns(data) {
+        const columnMapping = {
+            'Load': 'Load',
+            'SAP Shipment Number': 'SAP_Shipment_Number',
+            'SAP Created Date': 'SAP_Created_Date',
+            'Trip': 'Trip_ID',
+            'Origin': 'Origin',
+            'Destination': 'Destination',
+            'Vehicle': 'Vehicle',
+            'Driver': 'Driver',
+            'Vehicle Assigned Date': 'Vehicle_Assigned_Date',
+            'Gate In Date': 'Gate_In_Date',
+            'Gate Out Date': 'Gate_Out_Date',
+            'DMC In Date': 'DMC_In_Date',
+            'DMC Out Date': 'DMC_Out_Date',
+            'DMC Status': 'DMC_Status',
+            'DMC Reason': 'DMC_Reason',
+            'DMC Finish': 'DMC_Finish',
+            'Transaction ID': 'Transaction_ID',
+            'SAP Eligible': 'SAP_Eligible',
+            'Sent to SAP': 'Sent_to_SAP',
+            'Sent Gate Conf': 'Sent_Gate_Conf',
+            'ELigible for Gate Conf': 'Eligible_for_Gate_Conf',
+            'Gate Reported Date': 'Gate_Reported_Date',
+            'GR_YN': 'GR_YN',
+            'GI_YN': 'GI_YN',
+            'GO_YN': 'GO_YN',
+            'GR_TM': 'GR_TM',
+            'GI_TM': 'GI_TM',
+            'GO_TM': 'GO_TM',
+            'Carrier': 'Carrier',
+            'Current SIte': 'Current_Site',
+            'DMC_TM': 'DMC_TM',
+            'Overall Status': 'Overall_Status',
+            'Stop Seq': 'Stop_Seq',
+            'Stop Type': 'Stop_Type',
+            'Detention': 'Detention',
+            'SAP File Name': 'SAP_File_Name',
+            'Gate Confirmation File Name': 'Gate_Confirmation_File_Name',
+            'Processing Flag': 'Processing_Flag',
+            'ORIG_NAME': 'ORIG_NAME',
+            'DEST_NAME': 'DEST_NAME',
+            'CARR_NAME': 'CARR_NAME',
+            'SHIPPER_FLAG': 'SHIPPER_FLAG',
+            'ADHOC_REASON': 'ADHOC_REASON',
+            'ADHOC_YN': 'ADHOC_YN',
+            'ALLOW_GI': 'ALLOW_GI',
+            'DET_YN': 'DET_YN',
+            'OPT_LOCK_ID': 'OPT_LOCK_ID',
+            'SHIP_TYPE': 'SHIP_TYPE',
+            'GATE_EXIT_DTT': 'GATE_EXIT_DTT',
+            'GE_YN': 'GE_YN',
+            'IS_DMCL': 'IS_DMCL',
+            'LOAD_STOPS': 'LOAD_STOPS',
+            'DMCL_LOC': 'DMCL_LOC',
+            'LOAD_SEQ': 'LOAD_SEQ',
+            'REGATE_YN': 'REGATE_YN',
+            'REGATE_FROM_LOAD': 'REGATE_FROM_LOAD',
+            'VEHICLE_CHANGE_YN': 'VEHICLE_CHANGE_YN',
+            'SAPCRT_SENT_DTT': 'SAPCRT_SENT_DTT',
+            'SAPUPD_SENT_DTT': 'SAPUPD_SENT_DTT',
+            'SAP_GENERATE_BEFORE_GR': 'SAP_GENERATE_BEFORE_GR'
+        };
+
+        return data.map(row => {
+            const newRow = {};
+            Object.keys(columnMapping).forEach(key => {
+                const stdKey = columnMapping[key];
+                newRow[stdKey] = row[key] !== undefined ? row[key] : '';
+            });
+            return newRow;
+        });
+    }
+
+    // ================================================================
+    // STEP 3 – Trip Builder
+    // ================================================================
+    function buildTrips(data) {
+        const tripMap = new Map();
+
+        data.forEach(row => {
+            const tripId = row.Trip_ID || '';
+            if (!tripId) return;
+
+            if (!tripMap.has(tripId)) {
+                tripMap.set(tripId, {
+                    Trip_ID: tripId,
+                    records: [],
+                    forwardLegs: [],
+                    returnLegs: []
+                });
+            }
+
+            const trip = tripMap.get(tripId);
+            trip.records.push(row);
+
+            if (row.SHIP_TYPE === 'CU' || row.SHIP_TYPE === 'IU') {
+                trip.forwardLegs.push(row);
+            }
+            if (row.SHIP_TYPE === 'EM' || row.SHIP_TYPE === 'AD' || row.SHIP_TYPE === 'EI') {
+                trip.returnLegs.push(row);
+            }
+        });
+
+        const trips = [];
+        tripMap.forEach((trip) => {
+            trip.forwardLegs.sort((a, b) => new Date(a.Gate_Out_Date) - new Date(b.Gate_Out_Date));
+            trip.returnLegs.sort((a, b) => new Date(b.Gate_Reported_Date) - new Date(a.Gate_Reported_Date));
+
+            const forwardLeg = trip.forwardLegs.length > 0 ? trip.forwardLegs[0] : null;
+            const returnLeg = trip.returnLegs.length > 0 ? trip.returnLegs[0] : null;
+
+            trips.push({
+                Trip_ID: trip.Trip_ID,
+                Dispatch_Time: forwardLeg ? forwardLeg.Gate_Out_Date : null,
+                Arrival_Time: returnLeg ? returnLeg.Gate_Reported_Date : null,
+                Origin: forwardLeg ? forwardLeg.ORIG_NAME : null,
+                Transporter: forwardLeg ? forwardLeg.CARR_NAME || forwardLeg.Carrier : null,
+                Carrier: forwardLeg ? forwardLeg.Carrier : null,
+                Has_Forward_Leg: trip.forwardLegs.length > 0,
+                Has_Return_Leg: trip.returnLegs.length > 0,
+                forwardLeg: forwardLeg,
+                returnLeg: returnLeg
+            });
+        });
+
+        return trips;
+    }
+
+    // ================================================================
+    // STEP 4 & 5 – Transit Time & Delay Classification
+    // ================================================================
+    function calculateTransitAndClassify(trips) {
+        return trips.map(trip => {
+            let transitHours = null;
+            let delayStatus = 'Cannot_Calculate';
+
+            if (trip.Dispatch_Time && trip.Arrival_Time) {
+                const dispatch = new Date(trip.Dispatch_Time);
+                const arrival = new Date(trip.Arrival_Time);
+                if (!isNaN(dispatch) && !isNaN(arrival) && arrival > dispatch) {
+                    transitHours = (arrival - dispatch) / (1000 * 60 * 60);
+                    delayStatus = transitHours <= 24 ? 'On Time' : 'Delayed';
+                }
+            }
+
+            return { ...trip, Transit_Time_Hours: transitHours, Delay_Status: delayStatus };
+        });
+    }
+
+    // ================================================================
+    // STEP 6 – Carrier Classification
+    // ================================================================
+    function classifyCarrier(carrierCode) {
+        if (!carrierCode) return 'Market';
+        const code = String(carrierCode).trim();
+        if (code.endsWith('D')) return 'Dedicated';
+        if (code.endsWith('P')) return 'Pool';
+        return 'Market';
+    }
+
+    // ================================================================
+    // STEP 7 – Customer Classification
+    // ================================================================
+    function classifyCustomer(shipType) {
+        if (!shipType) return 'Other';
+        const type = String(shipType).trim();
+        if (type.startsWith('CU')) return 'Customer';
+        if (type.startsWith('IU')) return 'Inter Unit';
+        return 'Other';
+    }
+
+    // ================================================================
+    // MAIN PROCESSING
+    // ================================================================
+    function processTransitTAT(rawData) {
+        const stdData = standardizeColumns(rawData);
+        const trips = buildTrips(stdData);
+        const processed = calculateTransitAndClassify(trips);
+
+        return processed.map(trip => {
+            const carrierType = classifyCarrier(trip.Carrier);
+            let customerType = 'Other';
+            if (trip.forwardLeg) {
+                customerType = classifyCustomer(trip.forwardLeg.SHIP_TYPE);
+            }
+
+            let note = '';
+            if (!trip.Has_Forward_Leg && !trip.Has_Return_Leg) note = 'Missing Both Legs';
+            else if (!trip.Has_Forward_Leg) note = 'Missing Forward Leg';
+            else if (!trip.Has_Return_Leg) note = 'Missing Return Leg';
+
+            return { ...trip, Carrier_Type: carrierType, Customer_Type: customerType, Note: note };
+        });
+    }
+
+    // ================================================================
+    // UI FUNCTIONS
+    // ================================================================
+    let allTrips = [];
+    let filteredTrips = [];
+
+    function populateFilterOptions(trips) {
+        // Transporter filter
+        const transporterSet = new Set();
+        trips.forEach(t => { if (t.Transporter) transporterSet.add(t.Transporter); });
+        const sortedTransporters = Array.from(transporterSet).sort();
+        const tSelect = document.getElementById('filterTransporter');
+        const tVal = tSelect.value;
+        tSelect.innerHTML = '<option value="all">All Transporters</option>';
+        sortedTransporters.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            tSelect.appendChild(opt);
+        });
+        if (sortedTransporters.includes(tVal)) tSelect.value = tVal;
+
+        // Origin filter
+        const originSet = new Set();
+        trips.forEach(t => { if (t.Origin) originSet.add(t.Origin); });
+        const sortedOrigins = Array.from(originSet).sort();
+        const oSelect = document.getElementById('filterOrigin');
+        const oVal = oSelect.value;
+        oSelect.innerHTML = '<option value="all">All Origins</option>';
+        sortedOrigins.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o;
+            opt.textContent = o;
+            oSelect.appendChild(opt);
+        });
+        if (sortedOrigins.includes(oVal)) oSelect.value = oVal;
+    }
+
+    function renderTable(trips) {
+        const tbody = document.getElementById('tableBody');
+        if (!trips || trips.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="10" class="no-data">No trips found matching the criteria</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = trips.map(t => {
+            const statusBadge = getStatusBadge(t.Delay_Status);
+            const carrierBadge = getCarrierBadge(t.Carrier_Type);
+            const customerBadge = getCustomerBadge(t.Customer_Type);
+            const transitDisplay = t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours) ? t.Transit_Time_Hours.toFixed(1) : '-';
+            const dispatchDisplay = t.Dispatch_Time ? formatDisplayDate(t.Dispatch_Time) : '-';
+            const arrivalDisplay = t.Arrival_Time ? formatDisplayDate(t.Arrival_Time) : '-';
+            const transporterDisplay = t.Transporter || '-';
+            const originDisplay = t.Origin || '-';
+
+            return `<tr>
+                <td><strong>${t.Trip_ID}</strong></td>
+                <td>${transporterDisplay}</td>
+                <td>${originDisplay}</td>
+                <td>${dispatchDisplay}</td>
+                <td>${arrivalDisplay}</td>
+                <td>${transitDisplay}</td>
+                <td>${statusBadge}</td>
+                <td>${carrierBadge}</td>
+                <td>${customerBadge}</td>
+                <td style="font-size:11px;color:#6c7a8d;">${t.Note || ''}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function getStatusBadge(status) {
+        const map = {
+            'On Time': '<span class="badge badge-success">On Time</span>',
+            'Delayed': '<span class="badge badge-danger">Delayed</span>',
+            'Cannot_Calculate': '<span class="badge badge-secondary">Cannot Calculate</span>'
+        };
+        return map[status] || `<span class="badge badge-secondary">${status}</span>`;
+    }
+
+    function getCarrierBadge(type) {
+        const map = {
+            'Dedicated': '<span class="badge badge-info">Dedicated</span>',
+            'Pool': '<span class="badge badge-primary">Pool</span>',
+            'Market': '<span class="badge badge-secondary">Market</span>'
+        };
+        return map[type] || `<span class="badge badge-secondary">${type}</span>`;
+    }
+
+    function getCustomerBadge(type) {
+        const map = {
+            'Customer': '<span class="badge badge-success">Customer</span>',
+            'Inter Unit': '<span class="badge badge-warning">Inter Unit</span>',
+            'Other': '<span class="badge badge-secondary">Other</span>'
+        };
+        return map[type] || `<span class="badge badge-secondary">${type}</span>`;
+    }
+
+    function formatDisplayDate(dateStr) {
+        if (!dateStr) return '-';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d)) return dateStr;
+            return d.toLocaleString('en-IN', { 
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        } catch { return dateStr; }
+    }
+
+    function updateStats(trips) {
+        const total = trips.length;
+        const onTime = trips.filter(t => t.Delay_Status === 'On Time').length;
+        const delayed = trips.filter(t => t.Delay_Status === 'Delayed').length;
+        const missing = trips.filter(t => t.Note && t.Note !== '').length;
+        const validTransits = trips.filter(t => t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours));
+        const avgTransit = validTransits.length > 0 
+            ? (validTransits.reduce((s, t) => s + t.Transit_Time_Hours, 0) / validTransits.length).toFixed(1)
+            : 0;
+
+        document.getElementById('totalTrips').textContent = total;
+        document.getElementById('onTimeTrips').textContent = onTime;
+        document.getElementById('delayedTrips').textContent = delayed;
+        document.getElementById('avgTransit').textContent = avgTransit;
+        document.getElementById('missingLegs').textContent = missing;
+        document.getElementById('processedCount').textContent = total;
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+    }
+
+    function updateCharts(trips) {
+        const colorMap = ['blue', 'green', 'orange', 'red', 'purple', 'teal', 'pink', 'indigo'];
+        
+        const statusCounts = {};
+        trips.forEach(t => { statusCounts[t.Delay_Status] = (statusCounts[t.Delay_Status] || 0) + 1; });
+        renderBarChart('statusChart', statusCounts, colorMap);
+
+        const carrierCounts = {};
+        trips.forEach(t => { carrierCounts[t.Carrier_Type] = (carrierCounts[t.Carrier_Type] || 0) + 1; });
+        renderBarChart('carrierChart', carrierCounts, colorMap);
+
+        const customerCounts = {};
+        trips.forEach(t => { customerCounts[t.Customer_Type] = (customerCounts[t.Customer_Type] || 0) + 1; });
+        renderBarChart('customerChart', customerCounts, colorMap);
+
+        const transporterCounts = {};
+        trips.forEach(t => { if (t.Transporter) transporterCounts[t.Transporter] = (transporterCounts[t.Transporter] || 0) + 1; });
+        const sortedTransporters = Object.entries(transporterCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        renderBarChart('transporterChart', Object.fromEntries(sortedTransporters), colorMap);
+
+        const originCounts = {};
+        trips.forEach(t => { if (t.Origin) originCounts[t.Origin] = (originCounts[t.Origin] || 0) + 1; });
+        const sortedOrigins = Object.entries(originCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        renderBarChart('originChart', Object.fromEntries(sortedOrigins), colorMap);
+    }
+
+    function renderBarChart(elementId, data, colors) {
+        const container = document.getElementById(elementId);
+        if (!container) return;
+
+        const total = Object.values(data).reduce((s, v) => s + v, 0);
+        if (total === 0) {
+            container.innerHTML = '<div style="color:#6c7a8d;font-size:13px;">No data available</div>';
+            return;
+        }
+
+        const entries = Object.entries(data);
+        container.innerHTML = entries.map(([label, count], index) => {
+            const percentage = (count / total) * 100;
+            const color = colors[index % colors.length];
+            const displayLabel = label.length > 20 ? label.substring(0, 18) + '…' : label;
+            return `<div class="bar-item">
+                <span class="label" title="${label}">${displayLabel}</span>
+                <div class="bar-track">
+                    <div class="bar-fill ${color}" style="width:${Math.max(percentage, 2)}%;">
+                        ${count}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function applyFilters() {
+        const statusFilter = document.getElementById('filterStatus').value;
+        const carrierFilter = document.getElementById('filterCarrier').value;
+        const customerFilter = document.getElementById('filterCustomer').value;
+        const transporterFilter = document.getElementById('filterTransporter').value;
+        const originFilter = document.getElementById('filterOrigin').value;
+        const searchTerm = document.getElementById('searchTrip').value.toLowerCase().trim();
+
+        filteredTrips = allTrips.filter(trip => {
+            if (statusFilter !== 'all' && trip.Delay_Status !== statusFilter) return false;
+            if (carrierFilter !== 'all' && trip.Carrier_Type !== carrierFilter) return false;
+            if (customerFilter !== 'all' && trip.Customer_Type !== customerFilter) return false;
+            if (transporterFilter !== 'all' && trip.Transporter !== transporterFilter) return false;
+            if (originFilter !== 'all' && trip.Origin !== originFilter) return false;
+            if (searchTerm && !trip.Trip_ID.toLowerCase().includes(searchTerm)) return false;
+            return true;
+        });
+
+        renderTable(filteredTrips);
+        updateStats(filteredTrips);
+        updateCharts(filteredTrips);
+        document.getElementById('summarySection').style.display = 'block';
+    }
+
+    function resetFilters() {
+        document.getElementById('filterStatus').value = 'all';
+        document.getElementById('filterCarrier').value = 'all';
+        document.getElementById('filterCustomer').value = 'all';
+        document.getElementById('filterTransporter').value = 'all';
+        document.getElementById('filterOrigin').value = 'all';
+        document.getElementById('searchTrip').value = '';
+        applyFilters();
+    }
+
+    function exportCSV() {
+        if (filteredTrips.length === 0) {
+            alert('No data to export');
+            return;
+        }
+
+        const headers = ['Trip_ID', 'Transporter', 'Origin', 'Dispatch_Time', 'Arrival_Time', 
+                         'Transit_Time_Hours', 'Delay_Status', 'Carrier_Type', 'Customer_Type', 'Note'];
+        const rows = filteredTrips.map(t => [
+            t.Trip_ID,
+            t.Transporter || '',
+            t.Origin || '',
+            t.Dispatch_Time || '',
+            t.Arrival_Time || '',
+            t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours) ? t.Transit_Time_Hours.toFixed(2) : '',
+            t.Delay_Status,
+            t.Carrier_Type,
+            t.Customer_Type,
+            t.Note || ''
+        ]);
+
+        let csv = headers.join(',') + '\n';
+        rows.forEach(row => {
+            csv += row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',') + '\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Transit_TAT_Analysis_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // ================================================================
+    // LOAD SAMPLE DATA
+    // ================================================================
+    function loadSampleData() {
+        const sampleData = generateSampleData();
+        allTrips = processTransitTAT(sampleData);
+        populateFilterOptions(allTrips);
+        filteredTrips = allTrips;
+        renderTable(filteredTrips);
+        updateStats(filteredTrips);
+        updateCharts(filteredTrips);
+        document.getElementById('summarySection').style.display = 'block';
+        // Do NOT hide the upload section – it stays visible.
+    }
+
+    // ================================================================
+    // FILE UPLOAD HANDLING
+    // ================================================================
+    function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const text = e.target.result;
+                const lines = text.split('\n');
+                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                
+                const data = [];
+                for (let i = 1; i < lines.length; i++) {
+                    if (!lines[i].trim()) continue;
+                    
+                    const row = [];
+                    let current = '';
+                    let inQuotes = false;
+                    for (let j = 0; j < lines[i].length; j++) {
+                        const char = lines[i][j];
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            row.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    row.push(current.trim());
+
+                    if (row.length === headers.length) {
+                        const obj = {};
+                        headers.forEach((h, idx) => {
+                            obj[h] = row[idx] || '';
+                        });
+                        data.push(obj);
+                    }
+                }
+
+                if (data.length === 0) {
+                    alert('No valid data found in the CSV file.');
+                    return;
+                }
+
+                allTrips = processTransitTAT(data);
+                populateFilterOptions(allTrips);
+                filteredTrips = allTrips;
+                renderTable(filteredTrips);
+                updateStats(filteredTrips);
+                updateCharts(filteredTrips);
+                document.getElementById('summarySection').style.display = 'block';
+                // Upload section stays visible
+
+            } catch (error) {
+                alert('Error processing file: ' + error.message);
+                console.error(error);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // ================================================================
+    // EVENT BINDINGS
+    // ================================================================
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        if (this.files && this.files[0]) {
+            handleFile(this.files[0]);
+            this.value = ''; // allow re-upload of same file
+        }
+    });
+
+    document.getElementById('loadSampleBtn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        loadSampleData();
+    });
+
+    const uploadSection = document.getElementById('uploadSection');
+    uploadSection.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    });
+    uploadSection.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+    });
+    uploadSection.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files && files[0]) {
+            handleFile(files[0]);
+        }
+    });
+
+    // Click on upload section triggers file input (except on buttons)
+    uploadSection.addEventListener('click', function(e) {
+        if (e.target.tagName !== 'LABEL' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+            document.getElementById('fileInput').click();
+        }
+    });
+
+    // Enter key search
+    document.getElementById('searchTrip').addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    });
+
+    // Auto-apply filters on dropdown change
+    ['filterStatus', 'filterCarrier', 'filterCustomer', 'filterTransporter', 'filterOrigin'].forEach(id => {
+        document.getElementById(id).addEventListener('change', applyFilters);
+    });
+
+    console.log('📊 TRANSIT TAT DASHBOARD loaded successfully!');
+    console.log('📋 Click "Load Sample Data" to try it out with 300 clean sample trips.');
+    console.log('📁 Or upload your own CSV file for analysis.');
+    console.log('✅ Upload section stays visible – you can switch between sample & CSV anytime.');
 </script>
 </body>
 </html>
