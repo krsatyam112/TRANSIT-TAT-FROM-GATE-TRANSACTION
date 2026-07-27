@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transit TAT Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#151A21;
+    --ink-2:#232C36;
+    --paper:#ECEDE7;
+    --paper-2:#E1E3DB;
+    --card:#FFFFFF;
+    --amber:#E2A33B;
+    --amber-dark:#C2872A;
+    --green:#3C7A5D;
+    --green-bg:#E4EFE8;
+    --red:#B84C3E;
+    --red-bg:#F5E6E3;
+    --steel:#5B6673;
+    --steel-light:#8A93A0;
+    --line:#D6D8CF;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .ttat-display{font-family:'Space Grotesk', sans-serif;}
+  .ttat-mono{font-family:'IBM Plex Mono', monospace;}
+
+  /* ---------- Hero ---------- */
+  .ttat-hero{
+    background:var(--ink);
+    color:var(--paper);
+    padding:56px 32px 40px;
+    position:relative;
+    overflow:hidden;
+  }
+  .ttat-hero-inner{max-width:1080px;margin:0 auto;}
+  .ttat-eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 14px;
+  }
+  .ttat-title{
+    font-size:clamp(32px,5vw,48px);
+    font-weight:700;
+    margin:0 0 12px;
+    letter-spacing:-0.01em;
+  }
+  .ttat-subtitle{
+    font-size:16px;
+    color:#C7CBC2;
+    max-width:560px;
+    line-height:1.55;
+    margin:0 0 34px;
+  }
+
+  /* Barrier signature element */
+  .ttat-barrier-wrap{display:flex;align-items:center;gap:16px;height:40px;}
+  .ttat-barrier-hinge{
+    width:14px;height:14px;border-radius:50%;
+    background:var(--amber);flex:none;
+    box-shadow:0 0 0 4px rgba(226,163,59,.18);
+  }
+  .ttat-barrier{
+    width:280px;height:16px;border-radius:4px;
+    background:repeating-linear-gradient(-45deg,var(--amber) 0 14px,var(--ink-2) 14px 28px);
+    border:1px solid rgba(0,0,0,.25);
+    transform-origin:left center;
+    transform:rotate(0deg);
+    transition:transform 900ms cubic-bezier(.2,.8,.2,1.1);
+  }
+  .ttat-barrier.raised{transform:rotate(-32deg);}
+  .ttat-barrier-status{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--steel-light);
+  }
+  .ttat-barrier-status.open{color:var(--green);}
+  .ttat-barrier-status.open::before{content:"● ";}
+  .ttat-barrier-status:not(.open)::before{content:"● ";color:var(--red);}
+
+  /* ---------- Upload ---------- */
+  .ttat-main{max-width:1080px;margin:-24px auto 60px;padding:0 32px;}
+  .ttat-upload-card{
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:0 12px 32px rgba(21,26,33,.14);
+    padding:28px;
+    border:1px solid var(--line);
+  }
+  .ttat-dropzone{
+    border:2px dashed var(--steel-light);
+    border-radius:8px;
+    padding:36px 24px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .2s, background .2s;
+  }
+  .ttat-dropzone:hover, .ttat-dropzone.drag{
+    border-color:var(--amber);
+    background:#FBF6EC;
+  }
+  .ttat-dropzone svg{margin-bottom:10px;}
+  .ttat-dropzone-title{font-weight:600;font-size:15px;margin:0 0 4px;}
+  .ttat-dropzone-sub{font-size:13px;color:var(--steel);margin:0;}
+  .ttat-dropzone input{display:none;}
+  .ttat-format-note{
+    font-size:12.5px;color:var(--steel);margin-top:14px;
+    line-height:1.6;
+  }
+  .ttat-format-note code{
+    background:var(--paper-2);padding:1px 6px;border-radius:4px;
+    font-family:'IBM Plex Mono', monospace;font-size:11.5px;
+  }
+  .ttat-status-line{
+    margin-top:16px;font-size:13.5px;display:flex;align-items:center;gap:8px;
+  }
+  .ttat-spinner{
+    width:14px;height:14px;border-radius:50%;
+    border:2px solid var(--line);border-top-color:var(--amber);
+    animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .ttat-banner{
+    margin-top:14px;padding:12px 14px;border-radius:8px;font-size:13.5px;line-height:1.5;
+  }
+  .ttat-banner.warn{background:#FBF1E1;border:1px solid #EAD1A0;color:#7A5A18;}
+  .ttat-banner.error{background:var(--red-bg);border:1px solid #E2B7AE;color:#7A2E22;}
+
+  /* ---------- App shell ---------- */
+  .ttat-app{display:none;margin-top:28px;}
+  .ttat-app.show{display:block;}
+
+  .ttat-toolbar{
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:14px;margin-bottom:18px;
+  }
+  .ttat-tabs{display:flex;gap:4px;background:var(--paper-2);padding:4px;border-radius:8px;}
+  .ttat-tab{
+    border:none;background:transparent;padding:9px 16px;border-radius:6px;
+    font-family:'IBM Plex Sans';font-size:13.5px;font-weight:600;color:var(--steel);
+    cursor:pointer;transition:all .15s;
+  }
+  .ttat-tab.active{background:var(--ink);color:var(--paper);}
+  .ttat-tab:not(.active):hover{color:var(--ink);}
+
+  .ttat-download-btn{
+    background:var(--amber);color:var(--ink);border:none;
+    padding:11px 20px;border-radius:8px;font-weight:600;font-size:13.5px;
+    cursor:pointer;display:flex;align-items:center;gap:8px;
+    transition:background .15s, transform .1s;
+    font-family:'IBM Plex Sans';
+  }
+  .ttat-download-btn:hover{background:var(--amber-dark);}
+  .ttat-download-btn:active{transform:translateY(1px);}
+  .ttat-reset-link{
+    font-size:12.5px;color:var(--steel);background:none;border:none;cursor:pointer;
+    text-decoration:underline;padding:0;
+  }
+
+  .ttat-panel{display:none;}
+  .ttat-panel.active{display:block;}
+
+  /* KPI cards */
+  .ttat-kpi-row{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:12px;margin-bottom:20px;
+  }
+  .ttat-kpi{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .ttat-kpi-label{
+    font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--steel);
+    margin:0 0 8px;
+  }
+  .ttat-kpi-value{
+    font-family:'IBM Plex Mono', monospace;font-size:26px;font-weight:600;margin:0;
+    color:var(--ink);
+  }
+  .ttat-kpi-value.accent{color:var(--amber-dark);}
+  .ttat-kpi-value.good{color:var(--green);}
+  .ttat-kpi-value.bad{color:var(--red);}
+  .ttat-kpi-sub{font-size:11.5px;color:var(--steel-light);margin:4px 0 0;}
+
+  .ttat-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px;margin-bottom:18px;
+  }
+  .ttat-card-title{
+    font-family:'Space Grotesk';font-size:16px;font-weight:600;margin:0 0 4px;
+  }
+  .ttat-card-sub{font-size:12.5px;color:var(--steel);margin:0 0 16px;}
+  .ttat-chart-wrap{height:320px;position:relative;}
+
+  /* Breakdown tables */
+  .ttat-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .ttat-table th{
+    text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--steel);border-bottom:1px solid var(--line);padding:8px 10px;
+    cursor:pointer;user-select:none;white-space:nowrap;
+  }
+  .ttat-table th:hover{color:var(--ink);}
+  .ttat-table th.sorted::after{content:" ▾";color:var(--amber-dark);}
+  .ttat-table td{
+    padding:9px 10px;border-bottom:1px solid #EEEFE9;font-family:'IBM Plex Mono';font-size:12.5px;
+  }
+  .ttat-table tbody tr:hover{background:#FAFAF6;}
+  .ttat-table tbody tr.clickable{cursor:pointer;}
+  .ttat-pill{
+    display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;
+    font-family:'IBM Plex Sans';
+  }
+  .ttat-pill.dedicated{background:#E5EEFB;color:#2A5C9E;}
+  .ttat-pill.pool{background:#EFE7F7;color:#6B3FA0;}
+  .ttat-pill.market{background:var(--green-bg);color:var(--green);}
+  .ttat-pill.blank{background:#EEEEEE;color:var(--steel);}
+  .ttat-note-tag{color:var(--red);font-family:'IBM Plex Sans';font-size:11.5px;}
+  .ttat-tat-num{font-weight:600;}
+
+  /* Trip log filters */
+  .ttat-filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+  .ttat-filters input, .ttat-filters select{
+    font-family:'IBM Plex Sans';font-size:13px;padding:8px 12px;
+    border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);
+  }
+  .ttat-filters input{flex:1;min-width:160px;}
+  .ttat-table-scroll{overflow-x:auto;}
+  .ttat-pagination{
+    display:flex;align-items:center;justify-content:space-between;margin-top:14px;
+    font-size:12.5px;color:var(--steel);
+  }
+  .ttat-pagination button{
+    background:var(--paper-2);border:none;padding:6px 12px;border-radius:6px;
+    cursor:pointer;font-size:12.5px;font-family:'IBM Plex Sans';font-weight:600;
+  }
+  .ttat-pagination button:disabled{opacity:.4;cursor:default;}
+  .ttat-pagination-controls{display:flex;gap:8px;align-items:center;}
+
+  .ttat-footer{
+    max-width:1080px;margin:0 auto 60px;padding:0 32px;
+    font-size:12px;color:var(--steel-light);
+  }
+
+  @media (max-width:640px){
+    .ttat-hero{padding:40px 20px 30px;}
+    .ttat-main, .ttat-footer{padding:0 16px;}
+    .ttat-kpi-row{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<div class="ttat-hero">
+  <div class="ttat-hero-inner">
+    <p class="ttat-eyebrow">Plant Gate Operations</p>
+    <h1 class="ttat-title ttat-display">Transit TAT Control</h1>
+    <p class="ttat-subtitle">Upload a gate transaction export and get plant-to-plant transit turnaround time, broken down by origin and carrier &mdash; then download the clean report.</p>
+    <div class="ttat-barrier-wrap">
+      <div class="ttat-barrier-hinge"></div>
+      <div class="ttat-barrier" id="barrier"></div>
+      <span class="ttat-barrier-status" id="barrierStatus">Gate closed &mdash; awaiting file</span>
+    </div>
+  </div>
+</div>
+
+<div class="ttat-main">
+
+  <div class="ttat-upload-card" id="uploadCard">
+    <div class="ttat-dropzone" id="dropzone">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8A93A0" stroke-width="1.6"><path d="M12 16V4M12 4L7 9M12 4l5 5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+      <p class="ttat-dropzone-title">Drop your Gate Report here, or click to browse</p>
+      <p class="ttat-dropzone-sub">Accepts .xlsx, .xls, or .csv</p>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    </div>
+    <p class="ttat-format-note">
+      Expected columns: <code>Trip</code>, <code>SHIP_TYPE</code>, <code>Gate Out Date</code>, <code>Gate Reported Date</code>
+      &mdash; plus optional <code>Vehicle</code>, <code>ORIG_NAME</code>, <code>Carrier</code> for the Origin and Carrier Type breakdowns.
+      A trip's start is its earliest CU/IU leg; its end is the latest EM/AD/EI leg reported back to plant.
+    </p>
+    <div id="statusArea"></div>
+  </div>
+
+  <div class="ttat-app" id="app">
+    <div class="ttat-toolbar">
+      <div class="ttat-tabs">
+        <button class="ttat-tab active" data-panel="overview">Overview</button>
+        <button class="ttat-tab" data-panel="origin">By Origin</button>
+        <button class="ttat-tab" data-panel="carrier">By Carrier</button>
+        <button class="ttat-tab" data-panel="tripLog">Trip Log</button>
+      </div>
+      <div style="display:flex;gap:14px;align-items:center;">
+        <button class="ttat-reset-link" id="resetBtn">Upload a different file</button>
+        <button class="ttat-download-btn" id="downloadBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M5 19h14"/></svg>
+          Download report (.xlsx)
+        </button>
+      </div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="ttat-panel active" id="panel-overview">
+      <div class="ttat-kpi-row" id="kpiRow"></div>
+      <div class="ttat-card">
+        <p class="ttat-card-title ttat-display">TAT distribution</p>
+        <p class="ttat-card-sub">Number of trips per turnaround-time band, hours from plant exit to plant return.</p>
+        <div class="ttat-chart-wrap"><canvas id="chartDist"></canvas></div>
+      </div>
+    </div>
+
+    <!-- BY ORIGIN -->
+    <div class="ttat-panel" id="panel-origin">
+      <div class="ttat-card">
+        <p class="ttat-card-title ttat-display">Average TAT by origin</p>
+        <p class="ttat-card-sub">Top origins by trip volume. Click a bar or a row to filter the Trip Log.</p>
+        <div class="ttat-chart-wrap"><canvas id="chartOrigin"></canvas></div>
+      </div>
+      <div class="ttat-card">
+        <div class="ttat-table-scroll">
+          <table class="ttat-table" id="originTable">
+            <thead><tr><th data-key="name">Origin</th><th data-key="count">Trips</th><th data-key="avg">Avg TAT (hrs)</th><th data-key="median">Median TAT (hrs)</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- BY CARRIER -->
+    <div class="ttat-panel" id="panel-carrier">
+      <div class="ttat-card">
+        <p class="ttat-card-title ttat-display">Trips &amp; average TAT by carrier type</p>
+        <p class="ttat-card-sub">Dedicated / Pool / Market, classified from the forward leg's carrier code. Click a bar or row to filter the Trip Log.</p>
+        <div class="ttat-chart-wrap"><canvas id="chartCarrier"></canvas></div>
+      </div>
+      <div class="ttat-card">
+        <div class="ttat-table-scroll">
+          <table class="ttat-table" id="carrierTable">
+            <thead><tr><th data-key="name">Carrier Type</th><th data-key="count">Trips</th><th data-key="avg">Avg TAT (hrs)</th><th data-key="median">Median TAT (hrs)</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRIP LOG -->
+    <div class="ttat-panel" id="panel-tripLog">
+      <div class="ttat-card">
+        <div class="ttat-filters">
+          <input type="text" id="searchInput" placeholder="Search trip ID or vehicle number&hellip;">
+          <select id="originFilter"><option value="">All origins</option></select>
+          <select id="carrierFilter"><option value="">All carrier types</option></select>
+          <select id="statusFilter">
+            <option value="">All trips</option>
+            <option value="computed">TAT computed</option>
+            <option value="missing">Missing a leg</option>
+          </select>
+        </div>
+        <div class="ttat-table-scroll">
+          <table class="ttat-table" id="tripTable">
+            <thead>
+              <tr>
+                <th data-key="tripId">Trip ID</th>
+                <th data-key="vehicle">Vehicle</th>
+                <th data-key="origin">Origin</th>
+                <th data-key="carrierType">Carrier Type</th>
+                <th data-key="plantExit">Plant Exit</th>
+                <th data-key="plantReturn">Plant Return</th>
+                <th data-key="tatHours">TAT (hrs)</th>
+                <th data-key="note">Note</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="ttat-pagination">
+          <span id="pageInfo"></span>
+          <div class="ttat-pagination-controls">
+            <button id="prevPage">&larr; Prev</button>
+            <button id="nextPage">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="ttat-footer">Processed entirely in your browser &mdash; the file never leaves this page.</p>
+
+<script>
+(function(){
+
+  /* ============ FIELD DETECTION ============ */
+  const FIELD_CANDIDATES = {
+    trip:      ['trip', 'trip id'],
+    vehicle:   ['vehicle'],
+    shipType:  ['ship_type', 'ship type'],
+    gateOut:   ['gate out date'],
+    gateRep:   ['gate reported date'],
+    origName:  ['orig_name', 'origin name'],
+    carrier:   ['carrier'],
+    load:      ['load']
+  };
+  const REQUIRED = ['trip', 'shipType', 'gateOut', 'gateRep'];
+  const FWD_TYPES = ['CU', 'IU'];
+  const RET_TYPES = ['EM', 'AD', 'EI'];
+
+  function detectFields(headers){
+    const norm = headers.map(h => (h||'').toString().trim().toLowerCase());
+    const map = {};
+    for (const field in FIELD_CANDIDATES){
+      for (const cand of FIELD_CANDIDATES[field]){
+        const idx = norm.indexOf(cand);
+        if (idx !== -1){ map[field] = headers[idx]; break; }
+      }
+    }
+    return map;
+  }
+
+  /* ============ DATE PARSING ============ */
+  function excelSerialToDate(serial){
+    const utcDays = Math.floor(serial - 25569);
+    const utcMs = utcDays * 86400 * 1000;
+    const base = new Date(utcMs);
+    const fractionalDay = serial - Math.floor(serial) + 1e-7;
+    let totalSeconds = Math.floor(86400 * fractionalDay);
+    const seconds = totalSeconds % 60; totalSeconds -= seconds;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor(totalSeconds / 60) % 60;
+    return new Date(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hours, minutes, seconds);
+  }
+
+  function parseDateValue(v){
+    if (v === undefined || v === null || v === '') return null;
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    if (typeof v === 'number') return excelSerialToDate(v);
+    if (typeof v === 'string'){
+      const t = v.trim();
+      if (t === '') return null;
+      if (/^[0-9]+(\.[0-9]+)?$/.test(t)) return excelSerialToDate(Number(t));
+      const d = new Date(t);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+
+  /* ============ FILE PARSING ============ */
+  async function parseFile(file){
+    const buf = await file.arrayBuffer();
+    const sniff = new TextDecoder('utf-8').decode(buf.slice(0, 4096)).toLowerCase();
+    if (sniff.includes('<html') || sniff.includes('<table')){
+      const text = new TextDecoder('utf-8').decode(buf);
+      const doc = new DOMParser().parseFromString(text, 'text/html');
+      const table = doc.querySelector('table');
+      if (!table) throw new Error('No table found inside this file.');
+      const ws = XLSX.utils.table_to_sheet(table);
+      return XLSX.utils.sheet_to_json(ws, { defval: '', raw: true });
+    }
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'csv'){
+      const text = new TextDecoder('utf-8').decode(buf);
+      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+      return parsed.data;
+    }
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+  }
+
+  /* ============ COMPUTE ============ */
+  function classifyCarrier(carrier){
+    if (!carrier) return '';
+    const c = String(carrier).trim();
+    if (c === '') return '';
+    const last = c.slice(-1).toUpperCase();
+    if (last === 'D') return 'Dedicated';
+    if (last === 'P') return 'Pool';
+    return 'Market';
+  }
+
+  function computeTrips(rawRows, fmap){
+    const norm = rawRows.map(row => {
+      const shipType = (row[fmap.shipType] || '').toString().trim().toUpperCase();
+      let loadType = 'OTHER';
+      if (FWD_TYPES.includes(shipType)) loadType = 'FWD';
+      else if (RET_TYPES.includes(shipType)) loadType = 'RET';
+      return {
+        trip: (row[fmap.trip] !== undefined ? String(row[fmap.trip]).trim() : ''),
+        vehicle: fmap.vehicle ? row[fmap.vehicle] : '',
+        origName: fmap.origName ? row[fmap.origName] : '',
+        carrier: fmap.carrier ? row[fmap.carrier] : '',
+        loadType,
+        gateOut: parseDateValue(row[fmap.gateOut]),
+        gateRep: parseDateValue(row[fmap.gateRep])
+      };
+    }).filter(r => r.trip !== '' && r.trip.toLowerCase() !== 'nan');
+
+    const groups = new Map();
+    for (const r of norm){
+      if (!groups.has(r.trip)) groups.set(r.trip, []);
+      groups.get(r.trip).push(r);
+    }
+
+    const trips = [];
+    for (const [tripId, rows] of groups){
+      const fwd = rows.filter(r => r.loadType === 'FWD' && r.gateOut);
+      const ret = rows.filter(r => r.loadType === 'RET' && r.gateRep);
+      const fwdAll = rows.filter(r => r.loadType === 'FWD');
+      const retAll = rows.filter(r => r.loadType === 'RET');
+
+      let plantExit = null, origin = '', carrierType = '';
+      if (fwd.length){
+        fwd.sort((a,b) => a.gateOut - b.gateOut);
+        plantExit = fwd[0].gateOut;
+        origin = fwd[0].origName || '';
+        carrierType = classifyCarrier(fwd[0].carrier);
+      }
+      let plantReturn = null;
+      if (ret.length){
+        ret.sort((a,b) => b.gateRep - a.gateRep);
+        plantReturn = ret[0].gateRep;
+      }
+      const vehicle = (rows.find(r => r.vehicle) || {}).vehicle || '';
+
+      let tatHours = null;
+      if (fwdAll.length && retAll.length && plantExit && plantReturn){
+        tatHours = (plantReturn - plantExit) / 3600000;
+      }
+      let note = '';
+      if (fwdAll.length === 0 && retAll.length === 0) note = 'No forward or return leg found';
+      else if (fwdAll.length === 0) note = 'No forward (CU/IU) leg found';
+      else if (retAll.length === 0) note = 'No return leg found';
+
+      trips.push({
+        tripId, vehicle, origin, carrierType,
+        fwdCount: fwdAll.length, retCount: retAll.length,
+        plantExit, plantReturn, tatHours, note
+      });
+    }
+    trips.sort((a,b) => (parseFloat(a.tripId) || 0) - (parseFloat(b.tripId) || 0));
+    return trips;
+  }
+
+  /* ============ APP STATE ============ */
+  let TRIPS = [];
+  let FILTERED = [];
+  let PAGE = 1;
+  const PAGE_SIZE = 50;
+  let SORT = { table: null, key: null, dir: 1 };
+  let charts = {};
+  let rawFileName = 'Gate_Report';
+
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  const fmtDate = d => d ? d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'2-digit', hour:'numeric', minute:'2-digit', second:'2-digit', hour12:true }) : '\u2014';
+  const fmtHrs = v => v === null || v === undefined ? '\u2014' : v.toFixed(2);
+
+  function median(arr){
+    if (!arr.length) return null;
+    const s = [...arr].sort((a,b)=>a-b);
+    const mid = Math.floor(s.length/2);
+    return s.length % 2 ? s[mid] : (s[mid-1]+s[mid])/2;
+  }
+  function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+
+  /* ============ RENDER: OVERVIEW ============ */
+  function renderOverview(){
+    const computed = TRIPS.filter(t => t.tatHours !== null);
+    const tats = computed.map(t => t.tatHours);
+    const missingFwd = TRIPS.filter(t => t.fwdCount === 0).length;
+    const missingRet = TRIPS.filter(t => t.retCount === 0).length;
+
+    const kpis = [
+      { label: 'Total trips', value: TRIPS.length, cls:'' },
+      { label: 'TAT computed', value: computed.length, cls:'good' },
+      { label: 'Avg TAT (hrs)', value: fmtHrs(mean(tats)), cls:'accent' },
+      { label: 'Median TAT (hrs)', value: fmtHrs(median(tats)), cls:'accent' },
+      { label: 'Missing forward leg', value: missingFwd, cls: missingFwd ? 'bad' : '' },
+      { label: 'Missing return leg', value: missingRet, cls: missingRet ? 'bad' : '' }
+    ];
+    $('#kpiRow').innerHTML = kpis.map(k => `
+      <div class="ttat-kpi">
+        <p class="ttat-kpi-label">${k.label}</p>
+        <p class="ttat-kpi-value ${k.cls}">${k.value}</p>
+      </div>`).join('');
+
+    const bands = [
+      { label: '0\u20136h', min:0, max:6 }, { label: '6\u201312h', min:6, max:12 },
+      { label: '12\u201324h', min:12, max:24 }, { label: '24\u201348h', min:24, max:48 },
+      { label: '48\u201372h', min:48, max:72 }, { label: '72h+', min:72, max:Infinity }
+    ];
+    const counts = bands.map(b => tats.filter(v => v >= b.min && v < b.max).length);
+
+    drawChart('chartDist', 'bar', {
+      labels: bands.map(b=>b.label),
+      datasets: [{ label:'Trips', data: counts, backgroundColor:'#E2A33B', borderRadius:4 }]
+    }, { plugins:{legend:{display:false}} });
+  }
+
+  /* ============ RENDER: BY ORIGIN / CARRIER ============ */
+  function aggregateBy(getKey){
+    const counts = new Map();
+    for (const t of TRIPS){
+      const key = getKey(t) || '(blank)';
+      if (!counts.has(key)) counts.set(key, { name:key, count:0, tats:[] });
+      const g = counts.get(key);
+      g.count++;
+      if (t.tatHours !== null) g.tats.push(t.tatHours);
+    }
+    return Array.from(counts.values()).map(g => ({
+      name: g.name, count: g.count,
+      avg: mean(g.tats), median: median(g.tats)
+    })).sort((a,b) => b.count - a.count);
+  }
+
+  function renderOrigin(){
+    const data = aggregateBy(t => t.origin).filter(d => d.name !== '(blank)' || TRIPS.some(t=>!t.origin));
+    const top = data.slice(0, 12);
+    drawChart('chartOrigin', 'bar', {
+      labels: top.map(d=>d.name),
+      datasets: [{ label:'Avg TAT (hrs)', data: top.map(d=> d.avg===null?0:+d.avg.toFixed(2)), backgroundColor:'#3C7A5D', borderRadius:4 }]
+    }, {
+      indexAxis:'y',
+      plugins:{legend:{display:false}},
+      onClick: (evt, els) => { if (els.length){ const idx=els[0].index; applyFilter('origin', top[idx].name); } }
+    });
+    renderAggTable('#originTable tbody', data, 'origin');
+    LAST_ORIGIN_DATA = data;
+  }
+
+  function renderCarrier(){
+    const data = aggregateBy(t => t.carrierType);
+    drawChart('chartCarrier', 'bar', {
+      labels: data.map(d=>d.name || '(blank)'),
+      datasets: [
+        { label:'Trips', data: data.map(d=>d.count), backgroundColor:'#232C36', borderRadius:4, yAxisID:'y' },
+        { label:'Avg TAT (hrs)', data: data.map(d=> d.avg===null?0:+d.avg.toFixed(2)), backgroundColor:'#E2A33B', borderRadius:4, yAxisID:'y1' }
+      ]
+    }, {
+      scales:{
+        y:{ position:'left', title:{display:true,text:'Trips'} },
+        y1:{ position:'right', title:{display:true,text:'Avg TAT (hrs)'}, grid:{drawOnChartArea:false} }
+      },
+      onClick: (evt, els) => { if (els.length){ const idx=els[0].index; applyFilter('carrierType', data[idx].name); } }
+    });
+    renderAggTable('#carrierTable tbody', data, 'carrierType');
+    LAST_CARRIER_DATA = data;
+  }
+
+  let LAST_ORIGIN_DATA = [];
+  let LAST_CARRIER_DATA = [];
+  let AGG_SORT = { table: null, key: 'count', dir: -1 };
+
+  function sortAggData(data, key, dir){
+    const sorted = [...data];
+    sorted.sort((a,b) => {
+      let av = a[key], bv = b[key];
+      if (av === null) av = -Infinity; if (bv === null) bv = -Infinity;
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      if (av < bv) return -1*dir; if (av > bv) return 1*dir; return 0;
+    });
+    return sorted;
+  }
+
+  function renderAggTable(sel, data, filterKey){
+    $(sel).innerHTML = data.map(d => `
+      <tr class="clickable" data-filterkey="${filterKey}" data-filterval="${escapeAttr(d.name)}">
+        <td>${escapeHtml(d.name) || '\u2014'}</td>
+        <td>${d.count}</td>
+        <td>${fmtHrs(d.avg)}</td>
+        <td>${fmtHrs(d.median)}</td>
+      </tr>`).join('');
+    $$(sel + ' tr').forEach(tr => {
+      tr.addEventListener('click', () => applyFilter(tr.dataset.filterkey, tr.dataset.filterval));
+    });
+  }
+
+  function applyFilter(key, val){
+    if (key === 'origin') $('#originFilter').value = val;
+    if (key === 'carrierType') $('#carrierFilter').value = val;
+    setActiveTab('tripLog');
+    PAGE = 1;
+    filterTrips();
+  }
+
+  /* ============ CHART HELPER ============ */
+  function drawChart(canvasId, type, data, extraOptions){
+    if (typeof Chart === 'undefined') return;
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    if (charts[canvasId]) charts[canvasId].destroy();
+    charts[canvasId] = new Chart(ctx, {
+      type, data,
+      options: Object.assign({
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ font:{ family:'IBM Plex Sans' } } } },
+        scales: type==='bar' ? { x:{ ticks:{ font:{family:'IBM Plex Sans', size:11} } }, y:{ ticks:{ font:{family:'IBM Plex Sans', size:11} } } } : {}
+      }, extraOptions || {})
+    });
+  }
+
+  /* ============ TRIP LOG ============ */
+  function populateFilterOptions(){
+    const origins = [...new Set(TRIPS.map(t=>t.origin).filter(Boolean))].sort();
+    const carriers = [...new Set(TRIPS.map(t=>t.carrierType).filter(Boolean))].sort();
+    $('#originFilter').innerHTML = '<option value="">All origins</option>' + origins.map(o=>`<option value="${escapeAttr(o)}">${escapeHtml(o)}</option>`).join('');
+    $('#carrierFilter').innerHTML = '<option value="">All carrier types</option>' + carriers.map(c=>`<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
+  }
+
+  function filterTrips(){
+    const q = $('#searchInput').value.trim().toLowerCase();
+    const origin = $('#originFilter').value;
+    const carrier = $('#carrierFilter').value;
+    const status = $('#statusFilter').value;
+    FILTERED = TRIPS.filter(t => {
+      if (q && !(String(t.tripId).toLowerCase().includes(q) || String(t.vehicle).toLowerCase().includes(q))) return false;
+      if (origin && t.origin !== origin) return false;
+      if (carrier && t.carrierType !== carrier) return false;
+      if (status === 'computed' && t.tatHours === null) return false;
+      if (status === 'missing' && t.tatHours !== null) return false;
+      return true;
+    });
+    if (SORT.table === 'trip' && SORT.key) sortArray(FILTERED, SORT.key, SORT.dir);
+    renderTripTable();
+  }
+
+  function sortArray(arr, key, dir){
+    arr.sort((a,b) => {
+      let av = a[key], bv = b[key];
+      if (av instanceof Date) av = av.getTime(); if (bv instanceof Date) bv = bv.getTime();
+      if (av === null || av === undefined) av = -Infinity;
+      if (bv === null || bv === undefined) bv = -Infinity;
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      if (av < bv) return -1*dir; if (av > bv) return 1*dir; return 0;
+    });
+  }
+
+  function renderTripTable(){
+    const totalPages = Math.max(1, Math.ceil(FILTERED.length / PAGE_SIZE));
+    if (PAGE > totalPages) PAGE = totalPages;
+    const start = (PAGE-1) * PAGE_SIZE;
+    const pageRows = FILTERED.slice(start, start + PAGE_SIZE);
+
+    $('#tripTable tbody').innerHTML = pageRows.map(t => `
+      <tr>
+        <td>${escapeHtml(t.tripId)}</td>
+        <td>${escapeHtml(t.vehicle) || '\u2014'}</td>
+        <td>${escapeHtml(t.origin) || '\u2014'}</td>
+        <td>${t.carrierType ? `<span class="ttat-pill ${t.carrierType.toLowerCase()}">${t.carrierType}</span>` : '<span class="ttat-pill blank">\u2014</span>'}</td>
+        <td>${fmtDate(t.plantExit)}</td>
+        <td>${fmtDate(t.plantReturn)}</td>
+        <td class="ttat-tat-num">${fmtHrs(t.tatHours)}</td>
+        <td>${t.note ? `<span class="ttat-note-tag">${escapeHtml(t.note)}</span>` : ''}</td>
+      </tr>`).join('');
+
+    $('#pageInfo').textContent = `${FILTERED.length} trip${FILTERED.length===1?'':'s'} \u2014 page ${PAGE} of ${totalPages}`;
+    $('#prevPage').disabled = PAGE <= 1;
+    $('#nextPage').disabled = PAGE >= totalPages;
+  }
+
+  /* ============ UTIL ============ */
+  function escapeHtml(s){
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function escapeAttr(s){ return escapeHtml(s); }
+
+  /* ============ TABS ============ */
+  function setActiveTab(name){
+    $$('.ttat-tab').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
+    $$('.ttat-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  }
+  $$('.ttat-tab').forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.dataset.panel)));
+
+  /* ============ SORT HANDLERS ============ */
+  $('#originTable thead').addEventListener('click', e => {
+    const th = e.target.closest('th'); if (!th) return;
+    handleAggSort(th, '#originTable', () => LAST_ORIGIN_DATA);
+  });
+  $('#carrierTable thead').addEventListener('click', e => {
+    const th = e.target.closest('th'); if (!th) return;
+    handleAggSort(th, '#carrierTable', () => LAST_CARRIER_DATA);
+  });
+  function handleAggSort(th, tableSel, sourceGetter, renderTarget){
+    const key = th.dataset.key;
+    AGG_SORT.dir = (AGG_SORT.table === tableSel && AGG_SORT.key === key) ? -AGG_SORT.dir : -1;
+    AGG_SORT.table = tableSel; AGG_SORT.key = key;
+    document.querySelectorAll(tableSel + ' th').forEach(h => h.classList.toggle('sorted', h === th));
+    const sorted = sortAggData(sourceGetter(), key, AGG_SORT.dir);
+    const filterKey = tableSel === '#originTable' ? 'origin' : 'carrierType';
+    renderAggTable(tableSel + ' tbody', sorted, filterKey);
+  }
+
+  $('#tripTable thead').addEventListener('click', e => {
+    const th = e.target.closest('th'); if (!th) return;
+    const key = th.dataset.key;
+    SORT.dir = (SORT.table==='trip' && SORT.key===key) ? -SORT.dir : 1;
+    SORT.table = 'trip'; SORT.key = key;
+    $$('#tripTable th').forEach(h => h.classList.toggle('sorted', h===th));
+    sortArray(FILTERED, key, SORT.dir);
+    PAGE = 1;
+    renderTripTable();
+  });
+
+  /* ============ FILTER EVENTS ============ */
+  ['#searchInput','#originFilter','#carrierFilter','#statusFilter'].forEach(sel => {
+    $(sel).addEventListener('input', () => { PAGE = 1; filterTrips(); });
+    $(sel).addEventListener('change', () => { PAGE = 1; filterTrips(); });
+  });
+  $('#prevPage').addEventListener('click', () => { if (PAGE>1){ PAGE--; renderTripTable(); } });
+  $('#nextPage').addEventListener('click', () => { PAGE++; renderTripTable(); });
+
+  /* ============ MAIN PROCESS ============ */
+  async function handleFile(file){
+    rawFileName = file.name.replace(/\.[^.]+$/, '');
+    setStatus('processing', 'Reading ' + file.name + '&hellip;');
+    try {
+      const rows = await parseFile(file);
+      if (!rows.length) throw new Error('The file has no data rows.');
+      const headers = Object.keys(rows[0]);
+      const fmap = detectFields(headers);
+      const missing = REQUIRED.filter(f => !fmap[f]);
+      if (missing.length){
+        setStatus('error', 'Could not find required column(s): ' +
+          missing.map(m => FIELD_CANDIDATES[m][0]).join(', ') +
+          '. Check the file has these headers and try again.');
+        return;
+      }
+      const optionalMissing = ['vehicle','origName','carrier'].filter(f => !fmap[f]);
+      TRIPS = computeTrips(rows, fmap);
+      window.__ttatRawRows = rows;
+      window.__ttatFieldMap = fmap;
+
+      if (!TRIPS.length){
+        setStatus('error', 'No rows with a Trip ID were found, so no trips could be built.');
+        return;
+      }
+
+      let warn = '';
+      if (optionalMissing.length){
+        const names = optionalMissing.map(f => FIELD_CANDIDATES[f][0]).join(', ');
+        warn = `<div class="ttat-banner warn">Column(s) not found: ${names}. Those fields will show as blank in the report.</div>`;
+      }
+      $('#statusArea').innerHTML = warn;
+
+      populateFilterOptions();
+      renderOverview();
+      renderOrigin();
+      renderCarrier();
+      FILTERED = TRIPS.slice();
+      renderTripTable();
+
+      $('#app').classList.add('show');
+      $('#barrier').classList.add('raised');
+      $('#barrierStatus').textContent = 'Gate open \u2014 ' + TRIPS.length + ' trips loaded';
+      $('#barrierStatus').classList.add('open');
+    } catch (err){
+      console.error(err);
+      setStatus('error', 'Could not read this file: ' + err.message);
+    }
+  }
+
+  function setStatus(kind, html){
+    if (kind === 'processing'){
+      $('#statusArea').innerHTML = `<div class="ttat-status-line"><span class="ttat-spinner"></span> ${html}</div>`;
+    } else if (kind === 'error'){
+      $('#statusArea').innerHTML = `<div class="ttat-banner error">${html}</div>`;
+    } else {
+      $('#statusArea').innerHTML = '';
+    }
+  }
+
+  /* ============ UPLOAD WIRING ============ */
+  const dropzone = $('#dropzone');
+  const fileInput = $('#fileInput');
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+  ['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+  dropzone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+  $('#resetBtn').addEventListener('click', () => {
+    TRIPS = []; FILTERED = [];
+    $('#app').classList.remove('show');
+    $('#barrier').classList.remove('raised');
+    $('#barrierStatus').textContent = 'Gate closed \u2014 awaiting file';
+    $('#barrierStatus').classList.remove('open');
+    setStatus('idle','');
+    fileInput.value = '';
+  });
+
+  /* ============ DOWNLOAD ============ */
+  function buildOutputWorkbook(){
+    const wb = XLSX.utils.book_new();
+
+    // Trip TAT sheet
+    const tripHeader = ['Trip ID','Vehicle','Origin (Forward Load)','Carrier Type (Forward Load)',
+      'Forward Load Count (CU/IU)','Return Load Count (EM/AD/EI)',
+      'Plant Exit - Gate Out Date','Plant Return - Gate Reported Date','Transit TAT (Hours)','Note'];
+    const tripAoa = [tripHeader];
+    TRIPS.forEach(t => {
+      tripAoa.push([
+        isFinite(+t.tripId) ? +t.tripId : t.tripId,
+        t.vehicle || '',
+        t.origin || '',
+        t.carrierType || '',
+        t.fwdCount, t.retCount,
+        t.plantExit || '',
+        t.plantReturn || '',
+        t.tatHours === null ? '' : +t.tatHours.toFixed(2),
+        t.note || ''
+      ]);
+    });
+    const wsTrip = XLSX.utils.aoa_to_sheet(tripAoa);
+    applyDateFormat(wsTrip, tripAoa.length, [6,7], 'dd-mmm-yy hh:mm:ss AM/PM');
+    wsTrip['!cols'] = [{wch:12},{wch:14},{wch:20},{wch:18},{wch:12},{wch:12},{wch:24},{wch:24},{wch:14},{wch:26}];
+    XLSX.utils.book_append_sheet(wb, wsTrip, 'Trip TAT');
+
+    // Origin summary
+    const originData = aggregateBy(t => t.origin);
+    const originAoa = [['Origin','Trips','Avg TAT (Hours)','Median TAT (Hours)']];
+    originData.forEach(d => originAoa.push([d.name, d.count, d.avg===null?'':+d.avg.toFixed(2), d.median===null?'':+d.median.toFixed(2)]));
+    const wsOrigin = XLSX.utils.aoa_to_sheet(originAoa);
+    wsOrigin['!cols'] = [{wch:22},{wch:10},{wch:16},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, wsOrigin, 'Origin Summary');
+
+    // Carrier summary
+    const carrierData = aggregateBy(t => t.carrierType);
+    const carrierAoa = [['Carrier Type','Trips','Avg TAT (Hours)','Median TAT (Hours)']];
+    carrierData.forEach(d => carrierAoa.push([d.name, d.count, d.avg===null?'':+d.avg.toFixed(2), d.median===null?'':+d.median.toFixed(2)]));
+    const wsCarrier = XLSX.utils.aoa_to_sheet(carrierAoa);
+    wsCarrier['!cols'] = [{wch:16},{wch:10},{wch:16},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, wsCarrier, 'Carrier Summary');
+
+    // Raw data (as uploaded) + LoadType helper
+    const raw = window.__ttatRawRows || [];
+    const fmap = window.__ttatFieldMap || {};
+    if (raw.length){
+      const headers = Object.keys(raw[0]);
+      const rawAoa = [headers.concat(['LoadType'])];
+      raw.forEach(row => {
+        const shipType = (row[fmap.shipType] || '').toString().trim().toUpperCase();
+        let lt = 'OTHER';
+        if (FWD_TYPES.includes(shipType)) lt = 'FWD'; else if (RET_TYPES.includes(shipType)) lt = 'RET';
+        rawAoa.push(headers.map(h => row[h]).concat([lt]));
+      });
+      const wsRaw = XLSX.utils.aoa_to_sheet(rawAoa);
+      XLSX.utils.book_append_sheet(wb, wsRaw, 'Gate Data');
+    }
+
+    // Assumptions
+    const notes = [
+      ['Transit TAT Calculation \u2014 Method & Assumptions'],
+      [''],
+      ['1. Trips are grouped by Trip ID. Rows with a blank Trip ID are excluded.'],
+      ['2. Forward leg: SHIP_TYPE = CU or IU. TAT start = Gate Out Date of the earliest such leg.'],
+      ['3. Return leg: SHIP_TYPE = EM, AD, or EI. TAT end = Gate Reported Date of the latest such leg.'],
+      ['4. Transit TAT (Hours) = Plant Return \u2212 Plant Exit, in hours.'],
+      ['5. Origin = ORIG_NAME of the earliest forward leg only (not the return leg).'],
+      ['6. Carrier Type = derived from the Carrier code of that same forward leg: ends "D" \u2192 Dedicated, ends "P" \u2192 Pool, else \u2192 Market.'],
+      ['7. Trips missing a forward or return leg are flagged in the Note column rather than removed.'],
+      [''],
+      ['Generated by Transit TAT Control \u2014 processed client-side in the browser.']
+    ];
+    const wsNotes = XLSX.utils.aoa_to_sheet(notes);
+    wsNotes['!cols'] = [{wch:110}];
+    XLSX.utils.book_append_sheet(wb, wsNotes, 'Assumptions & Method');
+
+    return wb;
+  }
+
+  function applyDateFormat(ws, nRows, colIdxs, fmt){
+    for (let r = 1; r < nRows; r++){
+      colIdxs.forEach(c => {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        if (ws[addr] && ws[addr].v instanceof Date){
+          ws[addr].z = fmt;
+        }
+      });
+    }
+  }
+
+  $('#downloadBtn').addEventListener('click', () => {
+    const wb = buildOutputWorkbook();
+    XLSX.writeFile(wb, rawFileName + '_Transit_TAT_Report.xlsx');
+  });
+
+})();
+</script>
+</body>
+</html>
