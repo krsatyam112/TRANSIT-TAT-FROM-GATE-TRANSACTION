@@ -213,6 +213,7 @@
         .stat-card.warning { border-left-color: var(--warning); }
         .stat-card.danger { border-left-color: var(--danger); }
         .stat-card.info { border-left-color: var(--info); }
+        .stat-card.danger .value { color: var(--danger); }
 
         /* ===== Controls ===== */
         .controls {
@@ -338,6 +339,14 @@
             background: var(--primary-light);
         }
 
+        table tbody tr.row-defaulter {
+            background: #fff5f5;
+        }
+
+        table tbody tr.row-defaulter:hover {
+            background: #ffe0e0;
+        }
+
         /* ===== Badges ===== */
         .badge {
             display: inline-block;
@@ -355,6 +364,7 @@
         .badge-secondary { background: #e2e3e5; color: #383d41; }
         .badge-primary { background: #cce5ff; color: #004085; }
         .badge-dark { background: #343a40; color: #fff; }
+        .badge-defaulter { background: var(--danger); color: #fff; margin-left: 4px; }
 
         .no-data {
             text-align: center;
@@ -503,6 +513,11 @@
         .insight-box .highlight { color: var(--danger); font-weight: 600; }
         .insight-box .good { color: var(--success); font-weight: 600; }
 
+        /* ===== Defaulter Section ===== */
+        #defaulterSection .chart-box {
+            border: 1px solid #f5c6cb;
+        }
+
         /* ===== Responsive ===== */
         @media (max-width: 768px) {
             body { padding: 10px; }
@@ -583,6 +598,14 @@
             <div class="label">Missing Legs</div>
             <div class="value" id="missingLegs">0</div>
         </div>
+        <div class="stat-card danger">
+            <div class="label">Defaulter Transporters</div>
+            <div class="value" id="defaulterTransporterCount">0</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="label">Defaulter Vehicles</div>
+            <div class="value" id="defaulterVehicleCount">0</div>
+        </div>
     </div>
 
     <!-- ===== CONTROLS ===== -->
@@ -616,6 +639,21 @@
             <option value="all">All Origins</option>
         </select>
 
+        <select id="filterMonth">
+            <option value="all">All Months</option>
+        </select>
+
+        <select id="filterYear">
+            <option value="all">All Years</option>
+        </select>
+
+        <select id="filterDefaulter">
+            <option value="all">All Trips</option>
+            <option value="transporter">🚨 Defaulter Transporters Only</option>
+            <option value="vehicle">🚨 Defaulter Vehicles Only</option>
+            <option value="either">🚨 Either Defaulter</option>
+        </select>
+
         <input type="text" id="searchTrip" placeholder="🔍 Search Trip ID...">
 
         <button onclick="applyFilters()">Apply</button>
@@ -630,6 +668,13 @@
         <div id="tatInsights" class="insight-box" style="display:none;"></div>
     </div>
 
+    <!-- ===== DEFAULTER ANALYSIS ===== -->
+    <div id="defaulterSection" style="margin: 20px 0 10px 0;">
+        <h3 style="color:var(--primary); margin-bottom: 8px;">🚨 Defaulter Analysis (Avg TAT &gt; 42 hrs)</h3>
+        <div class="chart-container" id="defaulterContainer"></div>
+        <div class="note">💡 A Transporter or Vehicle is flagged as a Defaulter when its average Transit TAT across all its own trips exceeds 42 hours. Trips with a blank Transporter are excluded from Transporter-level defaulter analysis (blank stays blank).</div>
+    </div>
+
     <!-- ===== TABLE ===== -->
     <div class="table-container">
         <table>
@@ -637,6 +682,7 @@
                 <tr>
                     <th>Trip ID</th>
                     <th>Transporter</th>
+                    <th>Vehicle</th>
                     <th>Origin</th>
                     <th>Dispatch</th>
                     <th>Arrival</th>
@@ -649,7 +695,7 @@
             </thead>
             <tbody id="tableBody">
                 <tr>
-                    <td colspan="10" class="no-data">📂 Upload a CSV file or click "Load Sample Data" to begin analysis</td>
+                    <td colspan="11" class="no-data">📂 Upload a CSV file or click "Load Sample Data" to begin analysis</td>
                 </tr>
             </tbody>
         </table>
@@ -728,7 +774,8 @@
             
             const origin = origins[Math.floor(Math.random() * origins.length)];
             const destination = destinations[Math.floor(Math.random() * destinations.length)];
-            const transporter = transporters[Math.floor(Math.random() * transporters.length)];
+            // Occasionally leave transporter blank to exercise the "keep blank" rule
+            const transporter = Math.random() < 0.04 ? '' : transporters[Math.floor(Math.random() * transporters.length)];
             const carrier = carriers[Math.floor(Math.random() * carriers.length)];
             const forwardType = forwardTypes[Math.floor(Math.random() * forwardTypes.length)];
             const returnType = returnTypes[Math.floor(Math.random() * returnTypes.length)];
@@ -1019,12 +1066,24 @@
             trip.returnLegs.sort((a, b) => new Date(b.Gate_Reported_Date) - new Date(a.Gate_Reported_Date));
             const forwardLeg = trip.forwardLegs.length > 0 ? trip.forwardLegs[0] : null;
             const returnLeg = trip.returnLegs.length > 0 ? trip.returnLegs[0] : null;
+
+            // Transporter: read strictly from CARR_NAME, no fallback to Carrier code.
+            // If it's blank in the source data, it stays blank.
+            let transporterName = '';
+            if (forwardLeg && forwardLeg.CARR_NAME) transporterName = forwardLeg.CARR_NAME.trim();
+            else if (returnLeg && returnLeg.CARR_NAME) transporterName = returnLeg.CARR_NAME.trim();
+
+            let vehicleNumber = '';
+            if (forwardLeg && forwardLeg.Vehicle) vehicleNumber = forwardLeg.Vehicle.trim();
+            else if (returnLeg && returnLeg.Vehicle) vehicleNumber = returnLeg.Vehicle.trim();
+
             trips.push({
                 Trip_ID: trip.Trip_ID,
                 Dispatch_Time: forwardLeg ? forwardLeg.Gate_Out_Date : null,
                 Arrival_Time: returnLeg ? returnLeg.Gate_Reported_Date : null,
                 Origin: forwardLeg ? forwardLeg.ORIG_NAME : null,
-                Transporter: forwardLeg ? forwardLeg.CARR_NAME || forwardLeg.Carrier : null,
+                Transporter: transporterName,
+                Vehicle: vehicleNumber,
                 Carrier: forwardLeg ? forwardLeg.Carrier : null,
                 Has_Forward_Leg: trip.forwardLegs.length > 0,
                 Has_Return_Leg: trip.returnLegs.length > 0,
@@ -1096,10 +1155,83 @@
     }
 
     // ================================================================
+    // DEFAULTER DETECTION (Average TAT > 42 hrs)
+    // ================================================================
+    const DEFAULTER_THRESHOLD_HOURS = 42;
+
+    function average(arr) {
+        if (!arr || arr.length === 0) return null;
+        return arr.reduce((sum, v) => sum + v, 0) / arr.length;
+    }
+
+    function computeDefaulterMaps(trips) {
+        const transporterGroups = {};
+        const vehicleGroups = {};
+        trips.forEach(t => {
+            if (t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours)) {
+                // Blank transporter is intentionally excluded from grouping — stays blank, never flagged.
+                if (t.Transporter) {
+                    (transporterGroups[t.Transporter] = transporterGroups[t.Transporter] || []).push(t.Transit_Time_Hours);
+                }
+                if (t.Vehicle) {
+                    (vehicleGroups[t.Vehicle] = vehicleGroups[t.Vehicle] || []).push(t.Transit_Time_Hours);
+                }
+            }
+        });
+
+        const transporterAverages = {}, transporterCounts = {};
+        Object.keys(transporterGroups).forEach(k => {
+            transporterAverages[k] = average(transporterGroups[k]);
+            transporterCounts[k] = transporterGroups[k].length;
+        });
+
+        const vehicleAverages = {}, vehicleCounts = {};
+        Object.keys(vehicleGroups).forEach(k => {
+            vehicleAverages[k] = average(vehicleGroups[k]);
+            vehicleCounts[k] = vehicleGroups[k].length;
+        });
+
+        return { transporterAverages, transporterCounts, vehicleAverages, vehicleCounts };
+    }
+
+    function applyDefaulterFlags(trips, defaulterData) {
+        return trips.map(t => {
+            const transporterAvg = t.Transporter ? defaulterData.transporterAverages[t.Transporter] : null;
+            const vehicleAvg = t.Vehicle ? defaulterData.vehicleAverages[t.Vehicle] : null;
+            return {
+                ...t,
+                Transporter_Avg_TAT: (transporterAvg === undefined) ? null : transporterAvg,
+                Transporter_Is_Defaulter: transporterAvg !== null && transporterAvg !== undefined && transporterAvg > DEFAULTER_THRESHOLD_HOURS,
+                Vehicle_Avg_TAT: (vehicleAvg === undefined) ? null : vehicleAvg,
+                Vehicle_Is_Defaulter: vehicleAvg !== null && vehicleAvg !== undefined && vehicleAvg > DEFAULTER_THRESHOLD_HOURS
+            };
+        });
+    }
+
+    let currentDefaulterData = { transporterAverages: {}, transporterCounts: {}, vehicleAverages: {}, vehicleCounts: {} };
+
+    // Computes defaulter status ONCE on the full unfiltered dataset, then tags every trip.
+    // Defaulter status does not change as the user applies table filters.
+    function finalizeTrips(trips) {
+        currentDefaulterData = computeDefaulterMaps(trips);
+        return applyDefaulterFlags(trips, currentDefaulterData);
+    }
+
+    // ================================================================
     // UI FUNCTIONS
     // ================================================================
     let allTrips = [];
     let filteredTrips = [];
+
+    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+                         'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // Month/Year filters are driven off Gate Out Date (Dispatch_Time), not Arrival.
+    function getDispatchDate(trip) {
+        if (!trip.Dispatch_Time) return null;
+        const d = new Date(trip.Dispatch_Time);
+        return isNaN(d.getTime()) ? null : d;
+    }
 
     function populateFilterOptions(trips) {
         const transporterSet = new Set();
@@ -1129,12 +1261,47 @@
             oSelect.appendChild(opt);
         });
         if (sortedOrigins.includes(oVal)) oSelect.value = oVal;
+
+        // Month & Year options, derived from each trip's Gate Out Date (Dispatch_Time)
+        const monthSet = new Set();
+        const yearSet = new Set();
+        trips.forEach(t => {
+            const d = getDispatchDate(t);
+            if (d) {
+                monthSet.add(d.getMonth());
+                yearSet.add(d.getFullYear());
+            }
+        });
+
+        const sortedMonths = Array.from(monthSet).sort((a, b) => a - b);
+        const mSelect = document.getElementById('filterMonth');
+        const mVal = mSelect.value;
+        mSelect.innerHTML = '<option value="all">All Months</option>';
+        sortedMonths.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = String(m);
+            opt.textContent = MONTH_NAMES[m];
+            mSelect.appendChild(opt);
+        });
+        if (sortedMonths.map(String).includes(mVal)) mSelect.value = mVal;
+
+        const sortedYears = Array.from(yearSet).sort((a, b) => a - b);
+        const ySelect = document.getElementById('filterYear');
+        const yVal = ySelect.value;
+        ySelect.innerHTML = '<option value="all">All Years</option>';
+        sortedYears.forEach(y => {
+            const opt = document.createElement('option');
+            opt.value = String(y);
+            opt.textContent = String(y);
+            ySelect.appendChild(opt);
+        });
+        if (sortedYears.map(String).includes(yVal)) ySelect.value = yVal;
     }
 
     function renderTable(trips) {
         const tbody = document.getElementById('tableBody');
         if (!trips || trips.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="10" class="no-data">No trips found matching the criteria</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" class="no-data">No trips found matching the criteria</td></tr>`;
             return;
         }
         tbody.innerHTML = trips.map(t => {
@@ -1144,9 +1311,22 @@
             const transitDisplay = t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours) ? t.Transit_Time_Hours.toFixed(1) : '-';
             const dispatchDisplay = t.Dispatch_Time ? formatDisplayDate(t.Dispatch_Time) : '-';
             const arrivalDisplay = t.Arrival_Time ? formatDisplayDate(t.Arrival_Time) : '-';
-            return `<tr>
+
+            // Transporter stays blank when the source data has no Transporter — no "-" placeholder.
+            const transporterCell = t.Transporter
+                ? `${t.Transporter}${t.Transporter_Is_Defaulter ? ` <span class="badge badge-defaulter" title="Avg TAT: ${t.Transporter_Avg_TAT.toFixed(1)} hrs">⚠ Defaulter</span>` : ''}`
+                : '';
+
+            const vehicleCell = t.Vehicle
+                ? `${t.Vehicle}${t.Vehicle_Is_Defaulter ? ` <span class="badge badge-defaulter" title="Avg TAT: ${t.Vehicle_Avg_TAT.toFixed(1)} hrs">⚠ Defaulter</span>` : ''}`
+                : '';
+
+            const rowClass = (t.Transporter_Is_Defaulter || t.Vehicle_Is_Defaulter) ? 'row-defaulter' : '';
+
+            return `<tr class="${rowClass}">
                 <td><strong>${t.Trip_ID}</strong></td>
-                <td>${t.Transporter || '-'}</td>
+                <td>${transporterCell}</td>
+                <td>${vehicleCell}</td>
                 <td>${t.Origin || '-'}</td>
                 <td>${dispatchDisplay}</td>
                 <td>${arrivalDisplay}</td>
@@ -1209,6 +1389,17 @@
         document.getElementById('missingLegs').textContent = missing;
         document.getElementById('processedCount').textContent = total;
         document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+    }
+
+    // Defaulter counts are computed on the FULL dataset (currentDefaulterData), not the filtered view,
+    // since "is this transporter/vehicle a defaulter" shouldn't flip depending on which rows are shown.
+    function updateDefaulterStats() {
+        const transporterCount = Object.keys(currentDefaulterData.transporterAverages)
+            .filter(k => currentDefaulterData.transporterAverages[k] > DEFAULTER_THRESHOLD_HOURS).length;
+        const vehicleCount = Object.keys(currentDefaulterData.vehicleAverages)
+            .filter(k => currentDefaulterData.vehicleAverages[k] > DEFAULTER_THRESHOLD_HOURS).length;
+        document.getElementById('defaulterTransporterCount').textContent = transporterCount;
+        document.getElementById('defaulterVehicleCount').textContent = vehicleCount;
     }
 
     function updateCharts(trips) {
@@ -1328,6 +1519,62 @@
     }
 
     // ================================================================
+    // DEFAULTER ANALYSIS SECTION (Transporters & Vehicles > 42hrs average)
+    // ================================================================
+    function renderDefaulterAnalysis(defaulterData) {
+        const container = document.getElementById('defaulterContainer');
+        if (!container) return;
+        const { transporterAverages, transporterCounts, vehicleAverages, vehicleCounts } = defaulterData;
+
+        const defaulterTransporters = Object.keys(transporterAverages)
+            .filter(k => transporterAverages[k] !== null && transporterAverages[k] > DEFAULTER_THRESHOLD_HOURS)
+            .sort((a, b) => transporterAverages[b] - transporterAverages[a]);
+
+        const defaulterVehicles = Object.keys(vehicleAverages)
+            .filter(k => vehicleAverages[k] !== null && vehicleAverages[k] > DEFAULTER_THRESHOLD_HOURS)
+            .sort((a, b) => vehicleAverages[b] - vehicleAverages[a]);
+
+        const maxTransporterAvg = defaulterTransporters.length > 0 ? transporterAverages[defaulterTransporters[0]] : 1;
+        const maxVehicleAvg = defaulterVehicles.length > 0 ? vehicleAverages[defaulterVehicles[0]] : 1;
+
+        const transporterHTML = defaulterTransporters.length === 0
+            ? '<div style="color:#6c7a8d;font-size:13px;">No defaulter transporters found 🎉</div>'
+            : `<div class="bar-chart">${defaulterTransporters.map(k => {
+                const pct = Math.max((transporterAverages[k] / maxTransporterAvg) * 100, 10);
+                const displayLabel = k.length > 20 ? k.substring(0, 18) + '…' : k;
+                return `<div class="bar-item">
+                    <span class="label" title="${k}">${displayLabel}</span>
+                    <div class="bar-track">
+                        <div class="bar-fill red" style="width:${pct}%;">${transporterAverages[k].toFixed(1)}h (${transporterCounts[k]})</div>
+                    </div>
+                </div>`;
+            }).join('')}</div>`;
+
+        const vehicleHTML = defaulterVehicles.length === 0
+            ? '<div style="color:#6c7a8d;font-size:13px;">No defaulter vehicles found 🎉</div>'
+            : `<div class="bar-chart">${defaulterVehicles.map(k => {
+                const pct = Math.max((vehicleAverages[k] / maxVehicleAvg) * 100, 10);
+                return `<div class="bar-item">
+                    <span class="label" title="${k}">${k}</span>
+                    <div class="bar-track">
+                        <div class="bar-fill red" style="width:${pct}%;">${vehicleAverages[k].toFixed(1)}h (${vehicleCounts[k]})</div>
+                    </div>
+                </div>`;
+            }).join('')}</div>`;
+
+        container.innerHTML = `
+            <div class="chart-box">
+                <h4>⚠️ Defaulter Transporters (${defaulterTransporters.length})</h4>
+                ${transporterHTML}
+            </div>
+            <div class="chart-box">
+                <h4>⚠️ Defaulter Vehicles (${defaulterVehicles.length})</h4>
+                ${vehicleHTML}
+            </div>
+        `;
+    }
+
+    // ================================================================
     // APPLY FILTERS (overrides)
     // ================================================================
     function applyFilters() {
@@ -1336,6 +1583,9 @@
         const customerFilter = document.getElementById('filterCustomer').value;
         const transporterFilter = document.getElementById('filterTransporter').value;
         const originFilter = document.getElementById('filterOrigin').value;
+        const monthFilter = document.getElementById('filterMonth').value;
+        const yearFilter = document.getElementById('filterYear').value;
+        const defaulterFilter = document.getElementById('filterDefaulter').value;
         const searchTerm = document.getElementById('searchTrip').value.toLowerCase().trim();
 
         filteredTrips = allTrips.filter(trip => {
@@ -1344,14 +1594,25 @@
             if (customerFilter !== 'all' && trip.Customer_Type !== customerFilter) return false;
             if (transporterFilter !== 'all' && trip.Transporter !== transporterFilter) return false;
             if (originFilter !== 'all' && trip.Origin !== originFilter) return false;
+            if (monthFilter !== 'all' || yearFilter !== 'all') {
+                const dispatchDate = getDispatchDate(trip);
+                if (!dispatchDate) return false;
+                if (monthFilter !== 'all' && String(dispatchDate.getMonth()) !== monthFilter) return false;
+                if (yearFilter !== 'all' && String(dispatchDate.getFullYear()) !== yearFilter) return false;
+            }
+            if (defaulterFilter === 'transporter' && !trip.Transporter_Is_Defaulter) return false;
+            if (defaulterFilter === 'vehicle' && !trip.Vehicle_Is_Defaulter) return false;
+            if (defaulterFilter === 'either' && !(trip.Transporter_Is_Defaulter || trip.Vehicle_Is_Defaulter)) return false;
             if (searchTerm && !trip.Trip_ID.toLowerCase().includes(searchTerm)) return false;
             return true;
         });
 
         renderTable(filteredTrips);
         updateStats(filteredTrips);
+        updateDefaulterStats();
         updateCharts(filteredTrips);
         renderTATGrid(filteredTrips);
+        renderDefaulterAnalysis(currentDefaulterData);
         document.getElementById('summarySection').style.display = 'block';
     }
 
@@ -1361,16 +1622,28 @@
         document.getElementById('filterCustomer').value = 'all';
         document.getElementById('filterTransporter').value = 'all';
         document.getElementById('filterOrigin').value = 'all';
+        document.getElementById('filterMonth').value = 'all';
+        document.getElementById('filterYear').value = 'all';
+        document.getElementById('filterDefaulter').value = 'all';
         document.getElementById('searchTrip').value = '';
         applyFilters();
     }
 
     function exportCSV() {
         if (filteredTrips.length === 0) { alert('No data to export'); return; }
-        const headers = ['Trip_ID', 'Transporter', 'Origin', 'Dispatch_Time', 'Arrival_Time', 
+        const headers = ['Trip_ID', 'Transporter', 'Transporter_Avg_TAT_Hours', 'Transporter_Is_Defaulter',
+                         'Vehicle', 'Vehicle_Avg_TAT_Hours', 'Vehicle_Is_Defaulter',
+                         'Origin', 'Dispatch_Time', 'Arrival_Time',
                          'Transit_Time_Hours', 'Delay_Status', 'Carrier_Type', 'Customer_Type', 'Note'];
         const rows = filteredTrips.map(t => [
-            t.Trip_ID, t.Transporter || '', t.Origin || '', t.Dispatch_Time || '', t.Arrival_Time || '',
+            t.Trip_ID,
+            t.Transporter || '',
+            t.Transporter_Avg_TAT !== null && t.Transporter_Avg_TAT !== undefined ? t.Transporter_Avg_TAT.toFixed(1) : '',
+            t.Transporter_Is_Defaulter ? 'Yes' : 'No',
+            t.Vehicle || '',
+            t.Vehicle_Avg_TAT !== null && t.Vehicle_Avg_TAT !== undefined ? t.Vehicle_Avg_TAT.toFixed(1) : '',
+            t.Vehicle_Is_Defaulter ? 'Yes' : 'No',
+            t.Origin || '', t.Dispatch_Time || '', t.Arrival_Time || '',
             t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours) ? t.Transit_Time_Hours.toFixed(2) : '',
             t.Delay_Status, t.Carrier_Type, t.Customer_Type, t.Note || ''
         ]);
@@ -1390,13 +1663,15 @@
     // ================================================================
     function loadSampleData() {
         const sampleData = generateSampleData();
-        allTrips = processTransitTAT(sampleData);
+        allTrips = finalizeTrips(processTransitTAT(sampleData));
         populateFilterOptions(allTrips);
         filteredTrips = allTrips;
         renderTable(filteredTrips);
         updateStats(filteredTrips);
+        updateDefaulterStats();
         updateCharts(filteredTrips);
         renderTATGrid(filteredTrips);
+        renderDefaulterAnalysis(currentDefaulterData);
         document.getElementById('summarySection').style.display = 'block';
     }
 
@@ -1429,13 +1704,15 @@
                     }
                 }
                 if (data.length === 0) { alert('No valid data found in the CSV file.'); return; }
-                allTrips = processTransitTAT(data);
+                allTrips = finalizeTrips(processTransitTAT(data));
                 populateFilterOptions(allTrips);
                 filteredTrips = allTrips;
                 renderTable(filteredTrips);
                 updateStats(filteredTrips);
+                updateDefaulterStats();
                 updateCharts(filteredTrips);
                 renderTATGrid(filteredTrips);
+                renderDefaulterAnalysis(currentDefaulterData);
                 document.getElementById('summarySection').style.display = 'block';
             } catch (error) {
                 alert('Error processing file: ' + error.message);
@@ -1466,14 +1743,14 @@
     });
 
     document.getElementById('searchTrip').addEventListener('keyup', function(e) { if (e.key === 'Enter') applyFilters(); });
-    ['filterStatus', 'filterCarrier', 'filterCustomer', 'filterTransporter', 'filterOrigin'].forEach(id => {
+    ['filterStatus', 'filterCarrier', 'filterCustomer', 'filterTransporter', 'filterOrigin', 'filterMonth', 'filterYear', 'filterDefaulter'].forEach(id => {
         document.getElementById(id).addEventListener('change', applyFilters);
     });
 
-    console.log('📊 TRANSIT TAT DASHBOARD loaded with TAT Time Slot Grid!');
+    console.log('📊 TRANSIT TAT DASHBOARD loaded with Vehicle column and Defaulter (avg TAT > 42hrs) detection!');
     console.log('📋 Click "Load Sample Data" to try it out with 300 clean sample trips.');
     console.log('📁 Or upload your own CSV file for analysis.');
-    console.log('✅ The TAT Grid shows which time slots have the highest and lowest average transit times.');
+    console.log('🚨 Transporters/Vehicles with average TAT > 42 hrs are flagged as Defaulters and highlighted in red.');
 </script>
 </body>
 </html>
