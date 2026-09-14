@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRANSIT TAT DASHBOARD - Logistics Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         /* ===== CSS Variables & Reset ===== */
         :root {
@@ -29,80 +32,257 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f0f2f5;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-light);
             color: #333;
-            padding: 20px;
             min-height: 100vh;
         }
 
-        .container {
-            max-width: 1440px;
-            margin: 0 auto;
-            background: white;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            padding: 25px;
-            animation: fadeIn 0.5s ease;
-        }
-
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
+            from { opacity: 0; transform: translateY(-6px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* ===== Header ===== */
-        .header {
+        /* ===== App Shell ===== */
+        .app-shell {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ===== Sidebar ===== */
+        .sidebar {
+            width: 232px;
+            flex-shrink: 0;
+            background: var(--primary-dark);
+            color: #B9C6DA;
+            display: flex;
+            flex-direction: column;
+            transition: width var(--transition);
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed {
+            width: 64px;
+        }
+
+        .sidebar.collapsed .brand-text,
+        .sidebar.collapsed .nav-item span,
+        .sidebar.collapsed .sidebar-foot {
+            display: none;
+        }
+
+        .sidebar-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            flex-shrink: 0;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: #B9C6DA;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            display: flex;
+            flex-shrink: 0;
+        }
+        .sidebar-toggle svg { width: 18px; height: 18px; }
+        .sidebar-toggle:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+        .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .brand-mark {
+            width: 32px; height: 32px; border-radius: 8px;
+            background: var(--info);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; flex-shrink: 0;
+        }
+        .brand-mark svg { width: 18px; height: 18px; }
+        .brand-text { min-width: 0; white-space: nowrap; }
+        .brand-text strong { display: block; font-size: 14px; font-weight: 700; color: #fff; line-height: 1.25; }
+        .brand-text small { display: block; font-size: 11px; color: #8DA0B8; }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: none;
+            border: none;
+            color: #AAB9CC;
+            font-size: 13.5px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            white-space: nowrap;
+            transition: background var(--transition), color var(--transition);
+        }
+        .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .nav-item.active { background: var(--info); color: #fff; }
+
+        .sidebar-foot {
+            padding: 16px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            flex-shrink: 0;
+        }
+        .sidebar-stat-value {
+            display: block;
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+        .sidebar-stat-label { font-size: 11px; color: #8DA0B8; }
+
+        /* ===== Main / Topbar ===== */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .topbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--gray-border);
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 18px 28px;
+            background: white;
+            border-bottom: 1px solid var(--gray-border);
+        }
+        .topbar h1 { font-size: 19px; font-weight: 700; color: var(--primary); }
+        .topbar-sub { font-size: 13px; color: var(--gray); margin-top: 2px; }
+        .topbar-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .topbar-meta { font-size: 12px; color: var(--gray); font-variant-numeric: tabular-nums; }
+
+        .btn-ghost {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 14px;
+            border: 1px solid var(--gray-border);
+            border-radius: 8px;
+            background: white;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color var(--transition), color var(--transition);
+        }
+        .btn-ghost svg { width: 15px; height: 15px; }
+        .btn-ghost:hover { border-color: var(--info); color: var(--info); }
+        .btn-ghost.active { border-color: var(--info); color: var(--info); background: var(--primary-light); }
+
+        .filter-count {
+            background: var(--danger);
+            color: #fff;
+            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+
+        /* ===== Filter Panel ===== */
+        .filter-panel {
+            max-height: 0;
+            overflow: hidden;
+            background: var(--gray-light);
+            border-bottom: 1px solid var(--gray-border);
+            transition: max-height var(--transition);
+        }
+        .filter-panel.open { max-height: 260px; }
+        .filter-panel-inner {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 14px 28px;
+        }
+        .filter-panel-inner select, .filter-panel-inner input {
+            padding: 7px 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            min-width: 120px;
+        }
+        .filter-panel-inner select:focus, .filter-panel-inner input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26, 60, 110, 0.1);
+        }
+        .filter-panel-inner input[type="text"] { flex: 1; min-width: 160px; }
+        .filter-panel-inner button {
+            padding: 7px 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: background var(--transition);
+        }
+        .filter-panel-inner button:hover { background: var(--primary-dark); }
+        .filter-panel-inner button.secondary { background: var(--gray); }
+        .filter-panel-inner button.secondary:hover { background: #5a6a7d; }
+        .filter-panel-inner button.success { background: var(--success); }
+        .filter-panel-inner button.success:hover { background: #1e7e34; }
+
+        /* ===== View content ===== */
+        .view-content {
+            flex: 1;
+            padding: 24px 28px 40px;
+            overflow-y: auto;
+        }
+        .view { display: none; animation: fadeIn 0.25s ease; }
+        .view.active { display: block; }
+
+        .section-block { margin-bottom: 10px; }
+        .section-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             flex-wrap: wrap;
             gap: 10px;
+            margin-bottom: 10px;
         }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .header-logo {
-            font-size: 32px;
-        }
-
-        .header h1 {
+        .section-title {
             color: var(--primary);
-            font-size: 28px;
+            font-size: 15px;
             font-weight: 700;
-            letter-spacing: 0.5px;
+            margin-bottom: 10px;
         }
-
-        .header .subtitle {
+        .section-title-sub {
             color: var(--gray);
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 400;
+            margin-left: 6px;
         }
-
-        .header-right {
-            text-align: right;
-        }
-
-        .header-right .badge-count {
-            display: inline-block;
-            background: var(--primary-light);
-            color: var(--primary);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .header-right div {
-            font-size: 12px;
-            color: var(--gray);
+        .search-input {
+            padding: 7px 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-size: 13px;
+            min-width: 200px;
         }
 
         /* ===== Upload Section ===== */
@@ -183,10 +363,11 @@
         }
 
         .stat-card {
-            background: var(--gray-light);
+            background: white;
+            border: 1px solid var(--gray-border);
             padding: 15px 20px;
             border-radius: 8px;
-            border-left: 4px solid var(--primary);
+            border-left: 3px solid var(--primary);
             transition: transform var(--transition);
         }
 
@@ -196,17 +377,16 @@
 
         .stat-card .label {
             color: var(--gray);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 12.5px;
             font-weight: 600;
         }
 
         .stat-card .value {
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 700;
             color: var(--primary);
-            margin-top: 5px;
+            margin-top: 4px;
+            font-variant-numeric: tabular-nums;
         }
 
         .stat-card.success { border-left-color: var(--success); }
@@ -214,81 +394,6 @@
         .stat-card.danger { border-left-color: var(--danger); }
         .stat-card.info { border-left-color: var(--info); }
         .stat-card.danger .value { color: var(--danger); }
-
-        /* ===== Controls ===== */
-        .controls {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-            align-items: center;
-            background: var(--gray-light);
-            padding: 12px 15px;
-            border-radius: 8px;
-        }
-
-        .controls select, .controls input {
-            padding: 7px 12px;
-            border: 1px solid #d0d7de;
-            border-radius: 6px;
-            font-size: 13px;
-            background: white;
-            min-width: 120px;
-            transition: border var(--transition);
-        }
-
-        .controls select:focus, .controls input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(26, 60, 110, 0.1);
-        }
-
-        .controls input[type="text"] {
-            flex: 1;
-            min-width: 140px;
-        }
-
-        .controls button {
-            padding: 7px 16px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            transition: all var(--transition);
-            white-space: nowrap;
-        }
-
-        .controls button:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-        }
-
-        .controls button.secondary {
-            background: var(--gray);
-        }
-
-        .controls button.secondary:hover {
-            background: #5a6a7d;
-        }
-
-        .controls button.success {
-            background: var(--success);
-        }
-
-        .controls button.success:hover {
-            background: #1e7e34;
-        }
-
-        .controls .filter-label {
-            font-size: 11px;
-            color: var(--gray);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
 
         /* ===== Table ===== */
         .table-container {
@@ -563,13 +668,26 @@
             transform: rotate(90deg);
         }
         .drill-meta {
-            font-size: 12px;
-            color: var(--gray);
-            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
         .drill-meta strong {
             color: var(--primary);
         }
+        .meta-chip {
+            display: inline-block;
+            background: var(--gray-light);
+            border: 1px solid var(--gray-border);
+            padding: 2px 9px;
+            border-radius: 12px;
+            font-size: 11px;
+            color: var(--gray);
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+        .meta-chip strong { color: var(--primary); }
         .drill-body {
             display: none;
             background: white;
@@ -590,223 +708,304 @@
         }
 
         /* ===== Responsive ===== */
+        @media (max-width: 900px) {
+            .sidebar { position: fixed; z-index: 50; height: 100vh; width: 64px; }
+            .sidebar .brand-text, .sidebar .nav-item span, .sidebar .sidebar-foot { display: none; }
+            .sidebar.collapsed { width: 0; }
+            .main { margin-left: 64px; }
+        }
+
         @media (max-width: 768px) {
-            body { padding: 10px; }
-            .container { padding: 15px; }
-            .header { flex-direction: column; align-items: flex-start; gap: 8px; }
-            .header-right { text-align: left; width: 100%; }
+            .topbar { padding: 14px 16px; }
+            .topbar h1 { font-size: 17px; }
+            .filter-panel-inner { padding: 12px 16px; }
+            .view-content { padding: 18px 16px 32px; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .chart-container { grid-template-columns: 1fr; }
-            .controls select, .controls input { min-width: 100px; font-size: 12px; }
-            .controls button { font-size: 12px; padding: 6px 12px; }
+            .filter-panel-inner select, .filter-panel-inner input { min-width: 100px; font-size: 12px; }
+            .filter-panel-inner button { font-size: 12px; padding: 6px 12px; }
             .upload-section { padding: 20px; }
-            .upload-section .upload-icon { font-size: 32px; }
+            .upload-section .upload-icon svg { width: 32px; height: 32px; }
             .upload-btn { font-size: 14px; padding: 10px 20px; }
             table { font-size: 12px; }
             table th, table td { padding: 6px 10px; }
-            .header h1 { font-size: 22px; }
             .tat-grid-container { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
         }
 
         @media (max-width: 480px) {
             .stats-grid { grid-template-columns: 1fr; }
-            .controls { flex-direction: column; align-items: stretch; }
-            .controls select, .controls input, .controls button { width: 100%; }
-            .header h1 { font-size: 20px; }
+            .filter-panel-inner { flex-direction: column; align-items: stretch; }
+            .filter-panel-inner select, .filter-panel-inner input, .filter-panel-inner button { width: 100%; }
+            .topbar h1 { font-size: 16px; }
+            .topbar-right { width: 100%; justify-content: space-between; }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <!-- ===== HEADER ===== -->
-    <div class="header">
-        <div class="header-left">
-            <span class="header-logo">📊</span>
-            <div>
-                <h1>TRANSIT TAT DASHBOARD</h1>
-                <div class="subtitle">Logistics Performance Analytics | Transit Time &amp; SLA Monitoring</div>
+<div class="app-shell">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-top">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Collapse sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+            </button>
+            <div class="brand">
+                <span class="brand-mark">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="14" height="11"/><path d="M15 8h4l3 3v4h-7z"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                </span>
+                <span class="brand-text">
+                    <strong>Transit TAT</strong>
+                    <small>Control Tower</small>
+                </span>
             </div>
         </div>
-        <div class="header-right">
-            <div><span class="badge-count" id="processedCount">0</span> trips processed</div>
-            <div>Last updated: <span id="lastUpdated">-</span></div>
+
+        <nav class="sidebar-nav">
+            <button class="nav-item active" data-view="overview" title="Overview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+                <span>Overview</span>
+            </button>
+            <button class="nav-item" data-view="upload" title="Data source">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Data Source</span>
+            </button>
+            <button class="nav-item" data-view="defaulters" title="Defaulters">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>Defaulters</span>
+            </button>
+            <button class="nav-item" data-view="drilldown" title="Transporter drilldown">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                <span>Drilldown</span>
+            </button>
+            <button class="nav-item" data-view="table" title="Trip log">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                <span>Trip Log</span>
+            </button>
+            <button class="nav-item" data-view="charts" title="Analytics">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <span>Analytics</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-foot">
+            <span class="sidebar-stat-value" id="sidebarTripCount">0</span>
+            <span class="sidebar-stat-label">trips loaded</span>
         </div>
-    </div>
+    </aside>
 
-    <!-- ===== UPLOAD SECTION ===== -->
-    <div class="upload-section" id="uploadSection">
-        <div class="upload-icon">📊</div>
-        <h3>Upload Gate Report CSV</h3>
-        <p>Drag & drop your CSV file or click to browse</p>
-        <div>
-            <label class="upload-btn" for="fileInput">📁 Choose CSV File</label>
-            <button class="upload-btn secondary" id="loadSampleBtn">📋 Load Sample Data</button>
-        </div>
-        <input type="file" id="fileInput" accept=".csv">
-        <div class="upload-info">Supports standard Gate Report format with Trip ID, Gate Dates, and SHIP_TYPE columns</div>
-    </div>
-
-    <!-- ===== STATS GRID ===== -->
-    <div class="stats-grid" id="statsGrid">
-        <div class="stat-card info">
-            <div class="label">Total Trips</div>
-            <div class="value" id="totalTrips">0</div>
-        </div>
-        <div class="stat-card success">
-            <div class="label">On Time</div>
-            <div class="value" id="onTimeTrips">0</div>
-        </div>
-        <div class="stat-card danger">
-            <div class="label">Delayed</div>
-            <div class="value" id="delayedTrips">0</div>
-        </div>
-        <div class="stat-card warning">
-            <div class="label">Avg Transit (hrs)</div>
-            <div class="value" id="avgTransit">0</div>
-        </div>
-        <div class="stat-card">
-            <div class="label">Missing Legs</div>
-            <div class="value" id="missingLegs">0</div>
-        </div>
-        <div class="stat-card danger">
-            <div class="label">Defaulter Transporters</div>
-            <div class="value" id="defaulterTransporterCount">0</div>
-        </div>
-        <div class="stat-card danger">
-            <div class="label">Defaulter Vehicles</div>
-            <div class="value" id="defaulterVehicleCount">0</div>
-        </div>
-    </div>
-
-    <!-- ===== CONTROLS ===== -->
-    <div class="controls">
-        <select id="filterStatus">
-            <option value="all">All Status</option>
-            <option value="On Time">On Time</option>
-            <option value="Delayed">Delayed</option>
-            <option value="Cannot_Calculate">Cannot Calculate</option>
-        </select>
-
-        <select id="filterCarrier">
-            <option value="all">All Carrier Types</option>
-            <option value="Dedicated">Dedicated</option>
-            <option value="Pool">Pool</option>
-            <option value="Market">Market</option>
-        </select>
-
-        <select id="filterCustomer">
-            <option value="all">All Customer Types</option>
-            <option value="Customer">Customer</option>
-            <option value="Inter Unit">Inter Unit</option>
-            <option value="Other">Other</option>
-        </select>
-
-        <select id="filterTransporter">
-            <option value="all">All Transporters</option>
-        </select>
-
-        <select id="filterOrigin">
-            <option value="all">All Origins</option>
-        </select>
-
-        <select id="filterMonth">
-            <option value="all">All Months</option>
-        </select>
-
-        <select id="filterYear">
-            <option value="all">All Years</option>
-        </select>
-
-        <select id="filterDefaulter">
-            <option value="all">All Trips</option>
-            <option value="transporter">🚨 Defaulter Transporters Only</option>
-            <option value="vehicle">🚨 Defaulter Vehicles Only</option>
-            <option value="either">🚨 Either Defaulter</option>
-        </select>
-
-        <input type="text" id="searchTrip" placeholder="🔍 Search Trip ID...">
-
-        <button onclick="applyFilters()">Apply</button>
-        <button onclick="resetFilters()" class="secondary">Reset</button>
-        <button onclick="exportCSV()" class="success">📥 Export</button>
-    </div>
-
-    <!-- ===== TAT TIME SLOT GRID ===== -->
-    <div id="tatGridSection" style="margin: 20px 0 10px 0;">
-        <h3 style="color:var(--primary); margin-bottom: 8px;">⏱️ TAT Time Slot Grid</h3>
-        <div id="tatGridContainer" class="tat-grid-container"></div>
-        <div id="tatInsights" class="insight-box" style="display:none;"></div>
-    </div>
-
-    <!-- ===== DEFAULTER ANALYSIS ===== -->
-    <div id="defaulterSection" style="margin: 20px 0 10px 0;">
-        <h3 style="color:var(--primary); margin-bottom: 8px;">🚨 Defaulter Analysis (Avg TAT &gt; 42 hrs)</h3>
-        <div class="chart-container" id="defaulterContainer"></div>
-        <div class="note">💡 A Transporter or Vehicle is flagged as a Defaulter when its average Transit TAT across all its own trips exceeds 42 hours. Trips with a blank Transporter are excluded from Transporter-level defaulter analysis (blank stays blank).</div>
-    </div>
-
-    <!-- ===== TRANSPORTER -> VEHICLE DRILLDOWN ===== -->
-    <div id="transporterDrilldownSection" style="margin: 20px 0 10px 0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom: 8px;">
-            <h3 style="color:var(--primary);">🔍 Transporter Trip Count (click to drill into vehicles)</h3>
-            <input type="text" id="drilldownSearch" placeholder="🔍 Search transporter..." style="padding:7px 12px;border:1px solid #d0d7de;border-radius:6px;font-size:13px;min-width:200px;">
-        </div>
-        <div id="transporterDrilldownContainer"></div>
-    </div>
-
-    <!-- ===== TABLE ===== -->
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Trip ID</th>
-                    <th>Transporter</th>
-                    <th>Vehicle</th>
-                    <th>Origin</th>
-                    <th>Dispatch</th>
-                    <th>Arrival</th>
-                    <th>Transit (hrs)</th>
-                    <th>Status</th>
-                    <th>Carrier Type</th>
-                    <th>Customer Type</th>
-                    <th>Note</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody">
-                <tr>
-                    <td colspan="11" class="no-data">📂 Upload a CSV file or click "Load Sample Data" to begin analysis</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <!-- ===== SUMMARY CHARTS ===== -->
-    <div class="summary-section" id="summarySection" style="display:none;">
-        <h3>📈 Performance Summary</h3>
-        <div class="chart-container">
-            <div class="chart-box">
-                <h4>Delay Status Distribution</h4>
-                <div class="bar-chart" id="statusChart"></div>
+    <!-- ===== MAIN ===== -->
+    <div class="main">
+        <header class="topbar">
+            <div class="topbar-left">
+                <h1 id="pageTitle">Overview</h1>
+                <p class="topbar-sub" id="pageSubtitle">Gate-to-gate transit performance at a glance</p>
             </div>
-            <div class="chart-box">
-                <h4>Carrier Type Distribution</h4>
-                <div class="bar-chart" id="carrierChart"></div>
+            <div class="topbar-right">
+                <button class="btn-ghost" id="filterToggleBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.5 10 19 14 21 14 12.5 22 3"/></svg>
+                    Filters
+                    <span class="filter-count" id="filterCountBadge" style="display:none;">0</span>
+                </button>
+                <div class="topbar-meta">
+                    <span id="processedCount">0</span> trips &nbsp;·&nbsp; Updated <span id="lastUpdated">never</span>
+                </div>
             </div>
-            <div class="chart-box">
-                <h4>Customer Type Distribution</h4>
-                <div class="bar-chart" id="customerChart"></div>
-            </div>
-            <div class="chart-box">
-                <h4>Top Transporters</h4>
-                <div class="bar-chart" id="transporterChart"></div>
-            </div>
-            <div class="chart-box">
-                <h4>Top Origins</h4>
-                <div class="bar-chart" id="originChart"></div>
+        </header>
+
+        <!-- ===== FILTER PANEL (toggled) ===== -->
+        <div class="filter-panel" id="filterPanel">
+            <div class="filter-panel-inner">
+                <select id="filterStatus">
+                    <option value="all">All status</option>
+                    <option value="On Time">On time</option>
+                    <option value="Delayed">Delayed</option>
+                    <option value="Cannot_Calculate">Cannot calculate</option>
+                </select>
+
+                <select id="filterCarrier">
+                    <option value="all">All carrier types</option>
+                    <option value="Dedicated">Dedicated</option>
+                    <option value="Pool">Pool</option>
+                    <option value="Market">Market</option>
+                </select>
+
+                <select id="filterCustomer">
+                    <option value="all">All customer types</option>
+                    <option value="Customer">Customer</option>
+                    <option value="Inter Unit">Inter unit</option>
+                    <option value="Other">Other</option>
+                </select>
+
+                <select id="filterTransporter">
+                    <option value="all">All transporters</option>
+                </select>
+
+                <select id="filterOrigin">
+                    <option value="all">All origins</option>
+                </select>
+
+                <select id="filterMonth">
+                    <option value="all">All months</option>
+                </select>
+
+                <select id="filterYear">
+                    <option value="all">All years</option>
+                </select>
+
+                <select id="filterDefaulter">
+                    <option value="all">All trips</option>
+                    <option value="transporter">Defaulter transporters only</option>
+                    <option value="vehicle">Defaulter vehicles only</option>
+                    <option value="either">Either defaulter</option>
+                </select>
+
+                <input type="text" id="searchTrip" placeholder="Search trip ID…">
+
+                <button onclick="applyFilters()">Apply</button>
+                <button onclick="resetFilters()" class="secondary">Reset</button>
+                <button onclick="exportCSV()" class="success">Export CSV</button>
             </div>
         </div>
-        <div class="note">💡 Transit TAT = Return Leg (Gate Reported) - Forward Leg (Gate Out). SLA: 24 hours.</div>
+
+        <div class="view-content">
+
+            <!-- ===== VIEW: OVERVIEW ===== -->
+            <section class="view active" id="view-overview">
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card info">
+                        <div class="label">Total trips</div>
+                        <div class="value" id="totalTrips">0</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="label">On time</div>
+                        <div class="value" id="onTimeTrips">0</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <div class="label">Delayed</div>
+                        <div class="value" id="delayedTrips">0</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="label">Avg transit (hrs)</div>
+                        <div class="value" id="avgTransit">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Missing legs</div>
+                        <div class="value" id="missingLegs">0</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <div class="label">Defaulter transporters</div>
+                        <div class="value" id="defaulterTransporterCount">0</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <div class="label">Defaulter vehicles</div>
+                        <div class="value" id="defaulterVehicleCount">0</div>
+                    </div>
+                </div>
+
+                <div class="section-block">
+                    <h3 class="section-title">TAT time slot grid</h3>
+                    <div id="tatGridContainer" class="tat-grid-container"></div>
+                    <div id="tatInsights" class="insight-box" style="display:none;"></div>
+                </div>
+            </section>
+
+            <!-- ===== VIEW: UPLOAD ===== -->
+            <section class="view" id="view-upload">
+                <div class="upload-section" id="uploadSection">
+                    <div class="upload-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <h3>Upload Gate Report CSV</h3>
+                    <p>Drag &amp; drop your CSV file or click to browse</p>
+                    <div>
+                        <label class="upload-btn" for="fileInput">Choose CSV file</label>
+                        <button class="upload-btn secondary" id="loadSampleBtn">Load sample data</button>
+                    </div>
+                    <input type="file" id="fileInput" accept=".csv">
+                    <div class="upload-info">Supports standard Gate Report format with Trip ID, Gate Dates, SHIP_TYPE and Transporter Name columns</div>
+                </div>
+            </section>
+
+            <!-- ===== VIEW: DEFAULTERS ===== -->
+            <section class="view" id="view-defaulters">
+                <div class="section-block">
+                    <h3 class="section-title">Defaulter analysis <span class="section-title-sub">Avg TAT &gt; 42 hrs</span></h3>
+                    <div class="chart-container" id="defaulterContainer"></div>
+                    <div class="note">A transporter or vehicle is flagged as a defaulter when its average transit TAT across all its own trips exceeds 42 hours. Trips with a blank transporter are excluded from transporter-level defaulter analysis.</div>
+                </div>
+            </section>
+
+            <!-- ===== VIEW: DRILLDOWN ===== -->
+            <section class="view" id="view-drilldown">
+                <div class="section-block">
+                    <div class="section-title-row">
+                        <h3 class="section-title">Transporter trip count <span class="section-title-sub">click a row to see vehicles</span></h3>
+                        <input type="text" id="drilldownSearch" placeholder="Search transporter…" class="search-input">
+                    </div>
+                    <div id="transporterDrilldownContainer"></div>
+                </div>
+            </section>
+
+            <!-- ===== VIEW: TABLE ===== -->
+            <section class="view" id="view-table">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Trip ID</th>
+                                <th>Transporter</th>
+                                <th>Vehicle</th>
+                                <th>Origin</th>
+                                <th>Dispatch</th>
+                                <th>Arrival</th>
+                                <th>Transit (hrs)</th>
+                                <th>Status</th>
+                                <th>Carrier type</th>
+                                <th>Customer type</th>
+                                <th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr>
+                                <td colspan="11" class="no-data">Upload a CSV file or load sample data to begin analysis</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ===== VIEW: CHARTS ===== -->
+            <section class="view" id="view-charts">
+                <div class="summary-section" id="summarySection">
+                    <div class="chart-container">
+                        <div class="chart-box">
+                            <h4>Delay status distribution</h4>
+                            <div class="bar-chart" id="statusChart"></div>
+                        </div>
+                        <div class="chart-box">
+                            <h4>Carrier type distribution</h4>
+                            <div class="bar-chart" id="carrierChart"></div>
+                        </div>
+                        <div class="chart-box">
+                            <h4>Customer type distribution</h4>
+                            <div class="bar-chart" id="customerChart"></div>
+                        </div>
+                        <div class="chart-box">
+                            <h4>Top transporters</h4>
+                            <div class="bar-chart" id="transporterChart"></div>
+                        </div>
+                        <div class="chart-box">
+                            <h4>Top origins</h4>
+                            <div class="bar-chart" id="originChart"></div>
+                        </div>
+                    </div>
+                    <div class="note">Transit TAT = Return Leg (Gate Reported) − Forward Leg (Gate Out). SLA: 24 hours.</div>
+                </div>
+            </section>
+
+        </div>
     </div>
 </div>
 
@@ -1474,6 +1673,7 @@
         document.getElementById('missingLegs').textContent = missing;
         document.getElementById('processedCount').textContent = total;
         document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+        document.getElementById('sidebarTripCount').textContent = total;
     }
 
     // Defaulter counts are computed on the FULL dataset (currentDefaulterData), not the filtered view,
@@ -1726,7 +1926,10 @@
             const vehicleRows = vehicleEntries.map(ve => `
                 <div class="drill-vehicle-row">
                     <span>${ve.v}${ve.isDefaulter ? ' <span class="badge badge-defaulter" title="Avg TAT &gt; 42 hrs">⚠</span>' : ''}</span>
-                    <span style="color:var(--gray);"><strong style="color:var(--primary);">${ve.count}</strong> trips${ve.avg !== null ? ' · ' + ve.avg.toFixed(1) + ' hrs avg' : ''}</span>
+                    <span class="drill-meta">
+                        <span class="meta-chip"><strong>${ve.count}</strong> trips</span>
+                        ${ve.avg !== null ? `<span class="meta-chip">${ve.avg.toFixed(1)} hrs avg</span>` : ''}
+                    </span>
                 </div>
             `).join('');
 
@@ -1738,9 +1941,9 @@
                         ${t.name}${t.isDefaulter ? ' <span class="badge badge-defaulter">⚠ Defaulter</span>' : ''}
                     </span>
                     <span class="drill-meta">
-                        <strong>${t.tripCount}</strong> trips
-                        ${t.avgTat !== null ? ' · ' + t.avgTat.toFixed(1) + ' hrs avg' : ''}
-                        · ${t.vehicleCount} vehicle${t.vehicleCount === 1 ? '' : 's'}
+                        <span class="meta-chip"><strong>${t.tripCount}</strong> trips</span>
+                        ${t.avgTat !== null ? `<span class="meta-chip">${t.avgTat.toFixed(1)} hrs avg</span>` : ''}
+                        <span class="meta-chip">${t.vehicleCount} vehicle${t.vehicleCount === 1 ? '' : 's'}</span>
                     </span>
                 </div>
                 <div class="drill-body${isOpen ? ' open' : ''}" id="body_${cardId}">
@@ -1792,6 +1995,16 @@
             if (searchTerm && !trip.Trip_ID.toLowerCase().includes(searchTerm)) return false;
             return true;
         });
+
+        const activeFilterCount = [statusFilter, carrierFilter, customerFilter, transporterFilter, originFilter, monthFilter, yearFilter, defaulterFilter]
+            .filter(v => v !== 'all').length + (searchTerm ? 1 : 0);
+        const badge = document.getElementById('filterCountBadge');
+        if (activeFilterCount > 0) {
+            badge.textContent = activeFilterCount;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
 
         renderTable(filteredTrips);
         updateStats(filteredTrips);
@@ -1862,6 +2075,7 @@
         renderDefaulterAnalysis(currentDefaulterData);
         renderTransporterDrilldown(filteredTrips);
         document.getElementById('summarySection').style.display = 'block';
+        switchView('overview');
     }
 
     // ================================================================
@@ -1911,6 +2125,7 @@
                 renderDefaulterAnalysis(currentDefaulterData);
                 renderTransporterDrilldown(filteredTrips);
                 document.getElementById('summarySection').style.display = 'block';
+                switchView('overview');
             } catch (error) {
                 alert('Error processing file: ' + error.message);
                 console.error(error);
@@ -1944,6 +2159,44 @@
         document.getElementById(id).addEventListener('change', applyFilters);
     });
     document.getElementById('drilldownSearch').addEventListener('input', function() { renderTransporterDrilldown(filteredTrips); });
+
+    // ================================================================
+    // APP SHELL: view switching, sidebar collapse, filter panel toggle
+    // ================================================================
+    const VIEW_META = {
+        overview:   ['Overview', 'Gate-to-gate transit performance at a glance'],
+        upload:     ['Data Source', 'Load or refresh the Gate Report CSV'],
+        defaulters: ['Defaulters', 'Transporters & vehicles averaging over 42 hrs'],
+        drilldown:  ['Transporter Drilldown', 'Trip counts by transporter, down to vehicle level'],
+        table:      ['Trip Log', 'Every trip, filterable and exportable'],
+        charts:     ['Analytics', 'Distribution across status, carrier, customer & lanes']
+    };
+
+    function switchView(view) {
+        if (!VIEW_META[view]) return;
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        const target = document.getElementById('view-' + view);
+        if (target) target.classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+        document.getElementById('pageTitle').textContent = VIEW_META[view][0];
+        document.getElementById('pageSubtitle').textContent = VIEW_META[view][1];
+    }
+
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
+    });
+
+    document.getElementById('filterToggleBtn').addEventListener('click', function() {
+        document.getElementById('filterPanel').classList.toggle('open');
+        this.classList.toggle('active');
+    });
+
+    // Start on the Data Source view since no data is loaded yet.
+    switchView('upload');
 
     console.log('📊 TRANSIT TAT DASHBOARD loaded with Vehicle column and Defaulter (avg TAT > 42hrs) detection!');
     console.log('📋 Click "Load Sample Data" to try it out with 300 clean sample trips.');
