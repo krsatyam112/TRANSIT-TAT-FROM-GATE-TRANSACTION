@@ -1031,7 +1031,8 @@
             'VEHICLE_CHANGE_YN': 'VEHICLE_CHANGE_YN',
             'SAPCRT_SENT_DTT': 'SAPCRT_SENT_DTT',
             'SAPUPD_SENT_DTT': 'SAPUPD_SENT_DTT',
-            'SAP_GENERATE_BEFORE_GR': 'SAP_GENERATE_BEFORE_GR'
+            'SAP_GENERATE_BEFORE_GR': 'SAP_GENERATE_BEFORE_GR',
+            'Transporter Name': 'Transporter_Name'
         };
         return data.map(row => {
             const newRow = {};
@@ -1067,10 +1068,14 @@
             const forwardLeg = trip.forwardLegs.length > 0 ? trip.forwardLegs[0] : null;
             const returnLeg = trip.returnLegs.length > 0 ? trip.returnLegs[0] : null;
 
-            // Transporter: read strictly from CARR_NAME, no fallback to Carrier code.
-            // If it's blank in the source data, it stays blank.
+            // Transporter: read from the dedicated "Transporter Name" column (the real
+            // last column in the Gate Report). CARR_NAME holds a different value
+            // (consignee/customer name) and is only used as a fallback if Transporter
+            // Name is blank. If both are blank, it stays blank.
             let transporterName = '';
-            if (forwardLeg && forwardLeg.CARR_NAME) transporterName = forwardLeg.CARR_NAME.trim();
+            if (forwardLeg && forwardLeg.Transporter_Name) transporterName = forwardLeg.Transporter_Name.trim();
+            else if (returnLeg && returnLeg.Transporter_Name) transporterName = returnLeg.Transporter_Name.trim();
+            else if (forwardLeg && forwardLeg.CARR_NAME) transporterName = forwardLeg.CARR_NAME.trim();
             else if (returnLeg && returnLeg.CARR_NAME) transporterName = returnLeg.CARR_NAME.trim();
 
             let vehicleNumber = '';
@@ -1682,7 +1687,13 @@
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
-                const text = e.target.result;
+                // FIX: normalize line endings first. Windows-saved / Excel-exported CSVs use
+                // \r\n line breaks. Splitting on \n alone left a stray \r stuck to the LAST
+                // field of every line (header and data rows) — which is exactly why the
+                // Transporter (CARR_NAME) column, being the header text that didn't match
+                // anymore ("CARR_NAME\r" !== "CARR_NAME"), always came out blank no matter
+                // what was typed in it.
+                const text = e.target.result.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                 const lines = text.split('\n');
                 const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
                 const data = [];
