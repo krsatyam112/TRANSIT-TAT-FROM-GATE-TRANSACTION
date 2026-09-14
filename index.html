@@ -886,7 +886,6 @@
 
                 <button onclick="applyFilters()">Apply</button>
                 <button onclick="resetFilters()" class="secondary">Reset</button>
-                <button onclick="exportCSV()" class="success">Export CSV</button>
             </div>
         </div>
 
@@ -894,6 +893,13 @@
 
             <!-- ===== VIEW: OVERVIEW ===== -->
             <section class="view active" id="view-overview">
+                <div class="section-title-row">
+                    <h3 class="section-title">Key metrics <span class="section-title-sub">current filter selection</span></h3>
+                    <button class="btn-ghost" id="exportOverviewExcelBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export Excel
+                    </button>
+                </div>
                 <div class="stats-grid" id="statsGrid">
                     <div class="stat-card info">
                         <div class="label">Total trips</div>
@@ -952,7 +958,13 @@
             <!-- ===== VIEW: DEFAULTERS ===== -->
             <section class="view" id="view-defaulters">
                 <div class="section-block">
-                    <h3 class="section-title">Defaulter analysis <span class="section-title-sub">Avg TAT &gt; 42 hrs</span></h3>
+                    <div class="section-title-row">
+                        <h3 class="section-title">Defaulter analysis <span class="section-title-sub">Avg TAT &gt; 42 hrs</span></h3>
+                        <button class="btn-ghost" id="exportDefaultersExcelBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Export Excel
+                        </button>
+                    </div>
                     <div class="chart-container" id="defaulterContainer"></div>
                     <div class="note">A transporter or vehicle is flagged as a defaulter when its average transit TAT across all its own trips exceeds 42 hours. Trips with a blank transporter are excluded from transporter-level defaulter analysis.</div>
                 </div>
@@ -963,7 +975,13 @@
                 <div class="section-block">
                     <div class="section-title-row">
                         <h3 class="section-title">Transporter trip count <span class="section-title-sub">click a row to see vehicles</span></h3>
-                        <input type="text" id="drilldownSearch" placeholder="Search transporter…" class="search-input">
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <input type="text" id="drilldownSearch" placeholder="Search transporter…" class="search-input">
+                            <button class="btn-ghost" id="exportDrilldownExcelBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Export Excel
+                            </button>
+                        </div>
                     </div>
                     <div id="transporterDrilldownContainer"></div>
                 </div>
@@ -975,7 +993,13 @@
                 <div class="section-block">
                     <div class="section-title-row">
                         <h3 class="section-title">Idle time between trips <span class="section-title-sub">grouped by transporter → vehicle → gap</span></h3>
-                        <input type="text" id="idleSearch" placeholder="Search transporter or vehicle…" class="search-input">
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <input type="text" id="idleSearch" placeholder="Search transporter or vehicle…" class="search-input">
+                            <button class="btn-ghost" id="exportIdleExcelBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Export Excel
+                            </button>
+                        </div>
                     </div>
                     <div id="idleTimeContainer"></div>
                     <div class="note">Idle time = Gate Reported Date of the next forward leg (SHIP_TYPE CU/IU) minus Gate Reported Date of the vehicle's previous return leg (SHIP_TYPE EM/AD/EI), computed per vehicle in chronological order. Calculated on the full dataset, independent of the Filters panel.</div>
@@ -984,6 +1008,19 @@
 
             <!-- ===== VIEW: TABLE ===== -->
             <section class="view" id="view-table">
+                <div class="section-title-row">
+                    <h3 class="section-title">Trip log <span class="section-title-sub">respects the Filters panel</span></h3>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button class="btn-ghost" id="exportTableCsvBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Export CSV
+                        </button>
+                        <button class="btn-ghost" id="exportTableExcelBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Export Excel
+                        </button>
+                    </div>
+                </div>
                 <div class="table-container">
                     <table>
                         <thead>
@@ -1012,6 +1049,13 @@
 
             <!-- ===== VIEW: CHARTS ===== -->
             <section class="view" id="view-charts">
+                <div class="section-title-row">
+                    <h3 class="section-title">Analytics <span class="section-title-sub">respects the Filters panel</span></h3>
+                    <button class="btn-ghost" id="exportChartsExcelBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export Excel
+                    </button>
+                </div>
                 <div class="summary-section" id="summarySection">
                     <div class="chart-container">
                         <div class="chart-box">
@@ -1043,6 +1087,7 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
     // ================================================================
     // STEP 1: SAMPLE DATA GENERATOR (Valid Dates Only)
@@ -1762,12 +1807,15 @@
     // ================================================================
     // TAT TIME SLOT GRID & INSIGHTS
     // ================================================================
+    let lastTatSlotData = [];
+
     function renderTATGrid(trips) {
         const container = document.getElementById('tatGridContainer');
         const insightBox = document.getElementById('tatInsights');
         if (!trips || trips.length === 0) {
             container.innerHTML = '<div style="color:#6c7a8d;padding:20px;text-align:center;">No data to display TAT slots</div>';
             insightBox.style.display = 'none';
+            lastTatSlotData = [];
             return;
         }
 
@@ -1776,6 +1824,7 @@
         if (validTrips.length === 0) {
             container.innerHTML = '<div style="color:#6c7a8d;padding:20px;text-align:center;">No valid transit times to analyze</div>';
             insightBox.style.display = 'none';
+            lastTatSlotData = [];
             return;
         }
 
@@ -1795,6 +1844,7 @@
             const avg = items.length > 0 ? items.reduce((sum, t) => sum + t.Transit_Time_Hours, 0) / items.length : 0;
             return { ...slot, count: items.length, avg: avg, items: items };
         });
+        lastTatSlotData = slotData;
 
         // Find highest and lowest average TAT slots (with at least 1 trip)
         const nonEmpty = slotData.filter(s => s.count > 0);
@@ -2194,6 +2244,289 @@
     }
 
     // ================================================================
+    // IDLE TIME -> EXCEL EXPORT (3 sheets: by transporter, by vehicle, gap detail)
+    // ================================================================
+    function exportIdleTimeExcel() {
+        if (typeof XLSX === 'undefined') {
+            alert('Excel export library failed to load (no internet access?). Try again once online.');
+            return;
+        }
+        if (cachedIdleRecords === null) cachedIdleRecords = computeVehicleIdleRecords();
+        const records = cachedIdleRecords;
+        if (records.length === 0) {
+            alert('No idle-time data to export yet — load a CSV or sample data first.');
+            return;
+        }
+
+        // Sheet 1: by transporter
+        const tGroups = {};
+        records.forEach(r => {
+            if (!r.Transporter) return;
+            (tGroups[r.Transporter] = tGroups[r.Transporter] || []).push(r);
+        });
+        const byTransporter = Object.keys(tGroups).map(name => {
+            const recs = tGroups[name];
+            const avg = recs.reduce((s, r) => s + r.IdleHours, 0) / recs.length;
+            const vehicles = new Set(recs.map(r => r.Vehicle));
+            return { Transporter: name, 'Avg Idle (hrs)': Number(avg.toFixed(1)), 'Idle Gaps': recs.length, 'Vehicles': vehicles.size };
+        }).sort((a, b) => b['Avg Idle (hrs)'] - a['Avg Idle (hrs)']);
+
+        // Sheet 2: by vehicle
+        const vGroups = {};
+        records.forEach(r => {
+            const key = (r.Transporter || '(blank)') + '||' + r.Vehicle;
+            (vGroups[key] = vGroups[key] || []).push(r);
+        });
+        const byVehicle = Object.keys(vGroups).map(key => {
+            const recs = vGroups[key];
+            const [transporter, vehicle] = key.split('||');
+            const avg = recs.reduce((s, r) => s + r.IdleHours, 0) / recs.length;
+            return { Transporter: transporter, Vehicle: vehicle, 'Avg Idle (hrs)': Number(avg.toFixed(1)), 'Idle Gaps': recs.length };
+        }).sort((a, b) => b['Avg Idle (hrs)'] - a['Avg Idle (hrs)']);
+
+        // Sheet 3: gap detail
+        const gapDetail = records.slice().sort((a, b) => b.IdleHours - a.IdleHours).map(r => ({
+            Transporter: r.Transporter || '(blank)',
+            Vehicle: r.Vehicle,
+            'Prev Trip ID': r.PrevTripId || '',
+            'Prev Trip End': fmtIdleDate(r.PrevEnd),
+            'Next Trip ID': r.NextTripId || '',
+            'Next Trip Start': fmtIdleDate(r.NextStart),
+            'Idle Hours': Number(r.IdleHours.toFixed(2))
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.json_to_sheet(byTransporter);
+        ws1['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 12 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws1, 'By Transporter');
+
+        const ws2 = XLSX.utils.json_to_sheet(byVehicle);
+        ws2['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 16 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws2, 'By Vehicle');
+
+        const ws3 = XLSX.utils.json_to_sheet(gapDetail);
+        ws3['!cols'] = [{ wch: 30 }, { wch: 14 }, { wch: 13 }, { wch: 20 }, { wch: 13 }, { wch: 20 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws3, 'Gap Detail');
+
+        XLSX.writeFile(wb, `Idle_Time_Analysis_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    }
+
+    function xlsxTimestamp() {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    function checkXlsxLib() {
+        if (typeof XLSX === 'undefined') {
+            alert('Excel export library failed to load (no internet access?). Try again once online.');
+            return false;
+        }
+        return true;
+    }
+
+    // ================================================================
+    // OVERVIEW -> EXCEL EXPORT (KPI summary + TAT slot grid)
+    // ================================================================
+    function exportOverviewExcel() {
+        if (!checkXlsxLib()) return;
+        if (!filteredTrips || filteredTrips.length === 0) {
+            alert('No data to export yet — load a CSV or sample data first.');
+            return;
+        }
+        const total = filteredTrips.length;
+        const onTime = filteredTrips.filter(t => t.Delay_Status === 'On Time').length;
+        const delayed = filteredTrips.filter(t => t.Delay_Status === 'Delayed').length;
+        const missing = filteredTrips.filter(t => t.Note && t.Note !== '').length;
+        const validTransits = filteredTrips.filter(t => t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours));
+        const avgTransit = validTransits.length > 0 ? (validTransits.reduce((s, t) => s + t.Transit_Time_Hours, 0) / validTransits.length) : 0;
+        const defaulterTransporterCount = Object.keys(currentDefaulterData.transporterAverages).filter(k => currentDefaulterData.transporterAverages[k] > DEFAULTER_THRESHOLD_HOURS).length;
+        const defaulterVehicleCount = Object.keys(currentDefaulterData.vehicleAverages).filter(k => currentDefaulterData.vehicleAverages[k] > DEFAULTER_THRESHOLD_HOURS).length;
+
+        const kpiRows = [
+            { Metric: 'Total trips', Value: total },
+            { Metric: 'On time', Value: onTime },
+            { Metric: 'Delayed', Value: delayed },
+            { Metric: 'Avg transit (hrs)', Value: Number(avgTransit.toFixed(1)) },
+            { Metric: 'Missing legs', Value: missing },
+            { Metric: 'Defaulter transporters', Value: defaulterTransporterCount },
+            { Metric: 'Defaulter vehicles', Value: defaulterVehicleCount }
+        ];
+        const slotRows = lastTatSlotData.map(s => ({
+            'TAT Slot': s.label,
+            'Avg TAT (hrs)': Number(s.avg.toFixed(1)),
+            'Trip Count': s.count
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.json_to_sheet(kpiRows);
+        ws1['!cols'] = [{ wch: 26 }, { wch: 14 }];
+        XLSX.utils.book_append_sheet(wb, ws1, 'KPI Summary');
+
+        const ws2 = XLSX.utils.json_to_sheet(slotRows);
+        ws2['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws2, 'TAT Slots');
+
+        XLSX.writeFile(wb, `Overview_${xlsxTimestamp()}.xlsx`);
+    }
+
+    // ================================================================
+    // DEFAULTERS -> EXCEL EXPORT
+    // ================================================================
+    function exportDefaultersExcel() {
+        if (!checkXlsxLib()) return;
+        const { transporterAverages, transporterCounts, vehicleAverages, vehicleCounts } = currentDefaulterData;
+        const defTransporters = Object.keys(transporterAverages)
+            .filter(k => transporterAverages[k] > DEFAULTER_THRESHOLD_HOURS)
+            .sort((a, b) => transporterAverages[b] - transporterAverages[a])
+            .map(k => ({ Transporter: k, 'Avg TAT (hrs)': Number(transporterAverages[k].toFixed(1)), 'Trip Count': transporterCounts[k] }));
+        const defVehicles = Object.keys(vehicleAverages)
+            .filter(k => vehicleAverages[k] > DEFAULTER_THRESHOLD_HOURS)
+            .sort((a, b) => vehicleAverages[b] - vehicleAverages[a])
+            .map(k => ({ Vehicle: k, 'Avg TAT (hrs)': Number(vehicleAverages[k].toFixed(1)), 'Trip Count': vehicleCounts[k] }));
+
+        if (defTransporters.length === 0 && defVehicles.length === 0) {
+            alert('No defaulters found to export yet — load a CSV or sample data first.');
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.json_to_sheet(defTransporters);
+        ws1['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws1, 'Defaulter Transporters');
+
+        const ws2 = XLSX.utils.json_to_sheet(defVehicles);
+        ws2['!cols'] = [{ wch: 16 }, { wch: 16 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws2, 'Defaulter Vehicles');
+
+        XLSX.writeFile(wb, `Defaulters_${xlsxTimestamp()}.xlsx`);
+    }
+
+    // ================================================================
+    // DRILLDOWN -> EXCEL EXPORT (respects current Filters panel selection)
+    // ================================================================
+    function exportDrilldownExcel() {
+        if (!checkXlsxLib()) return;
+        if (!filteredTrips || filteredTrips.length === 0) {
+            alert('No data to export yet — load a CSV or sample data first.');
+            return;
+        }
+        const groups = computeTransporterVehicleGroups(filteredTrips);
+        const transporterRows = [];
+        const vehicleRows = [];
+        Object.keys(groups).forEach(name => {
+            const vehicleMap = groups[name];
+            const allT = Object.values(vehicleMap).flat();
+            const validTat = allT.filter(t => t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours));
+            const avgTat = validTat.length > 0 ? validTat.reduce((s, t) => s + t.Transit_Time_Hours, 0) / validTat.length : null;
+            transporterRows.push({
+                Transporter: name,
+                'Trip Count': allT.length,
+                'Avg TAT (hrs)': avgTat !== null ? Number(avgTat.toFixed(1)) : '',
+                Vehicles: Object.keys(vehicleMap).length,
+                Defaulter: allT[0].Transporter_Is_Defaulter ? 'Yes' : 'No'
+            });
+            Object.keys(vehicleMap).forEach(veh => {
+                const vTrips = vehicleMap[veh];
+                const vValid = vTrips.filter(t => t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours));
+                const vAvg = vValid.length > 0 ? vValid.reduce((s, t) => s + t.Transit_Time_Hours, 0) / vValid.length : null;
+                vehicleRows.push({
+                    Transporter: name,
+                    Vehicle: veh,
+                    'Trip Count': vTrips.length,
+                    'Avg TAT (hrs)': vAvg !== null ? Number(vAvg.toFixed(1)) : '',
+                    Defaulter: vTrips[0].Vehicle_Is_Defaulter ? 'Yes' : 'No'
+                });
+            });
+        });
+        transporterRows.sort((a, b) => b['Trip Count'] - a['Trip Count']);
+        vehicleRows.sort((a, b) => b['Trip Count'] - a['Trip Count']);
+
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.json_to_sheet(transporterRows);
+        ws1['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 10 }];
+        XLSX.utils.book_append_sheet(wb, ws1, 'By Transporter');
+
+        const ws2 = XLSX.utils.json_to_sheet(vehicleRows);
+        ws2['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 10 }];
+        XLSX.utils.book_append_sheet(wb, ws2, 'By Vehicle');
+
+        XLSX.writeFile(wb, `Transporter_Drilldown_${xlsxTimestamp()}.xlsx`);
+    }
+
+    // ================================================================
+    // TRIP LOG -> EXCEL EXPORT (mirrors Export CSV, respects Filters panel)
+    // ================================================================
+    function exportTableExcel() {
+        if (!checkXlsxLib()) return;
+        if (!filteredTrips || filteredTrips.length === 0) {
+            alert('No data to export yet — load a CSV or sample data first.');
+            return;
+        }
+        const rows = filteredTrips.map(t => ({
+            Trip_ID: t.Trip_ID,
+            Transporter: t.Transporter || '',
+            Transporter_Avg_TAT_Hours: t.Transporter_Avg_TAT !== null && t.Transporter_Avg_TAT !== undefined ? Number(t.Transporter_Avg_TAT.toFixed(1)) : '',
+            Transporter_Is_Defaulter: t.Transporter_Is_Defaulter ? 'Yes' : 'No',
+            Vehicle: t.Vehicle || '',
+            Vehicle_Avg_TAT_Hours: t.Vehicle_Avg_TAT !== null && t.Vehicle_Avg_TAT !== undefined ? Number(t.Vehicle_Avg_TAT.toFixed(1)) : '',
+            Vehicle_Is_Defaulter: t.Vehicle_Is_Defaulter ? 'Yes' : 'No',
+            Origin: t.Origin || '',
+            Dispatch_Time: t.Dispatch_Time || '',
+            Arrival_Time: t.Arrival_Time || '',
+            Transit_Time_Hours: t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours) ? Number(t.Transit_Time_Hours.toFixed(2)) : '',
+            Delay_Status: t.Delay_Status,
+            Carrier_Type: t.Carrier_Type,
+            Customer_Type: t.Customer_Type,
+            Note: t.Note || ''
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+        XLSX.utils.book_append_sheet(wb, ws, 'Trips');
+
+        XLSX.writeFile(wb, `Trip_Log_${xlsxTimestamp()}.xlsx`);
+    }
+
+    // ================================================================
+    // ANALYTICS -> EXCEL EXPORT (respects current Filters panel selection)
+    // ================================================================
+    function exportChartsExcel() {
+        if (!checkXlsxLib()) return;
+        if (!filteredTrips || filteredTrips.length === 0) {
+            alert('No data to export yet — load a CSV or sample data first.');
+            return;
+        }
+        const countBy = (keyFn) => {
+            const counts = {};
+            filteredTrips.forEach(t => {
+                const k = keyFn(t);
+                if (!k) return;
+                counts[k] = (counts[k] || 0) + 1;
+            });
+            return counts;
+        };
+        const toRows = (counts, labelName) => Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([label, count]) => ({ [labelName]: label, 'Trip Count': count }));
+
+        const statusRows = toRows(countBy(t => t.Delay_Status), 'Status');
+        const carrierRows = toRows(countBy(t => t.Carrier_Type), 'Carrier Type');
+        const customerRows = toRows(countBy(t => t.Customer_Type), 'Customer Type');
+        const transporterRows = toRows(countBy(t => t.Transporter), 'Transporter').slice(0, 10);
+        const originRows = toRows(countBy(t => t.Origin), 'Origin').slice(0, 10);
+
+        const wb = XLSX.utils.book_new();
+        [['Status Distribution', statusRows], ['Carrier Type', carrierRows], ['Customer Type', customerRows], ['Top Transporters', transporterRows], ['Top Origins', originRows]]
+            .forEach(([sheetName, rows]) => {
+                const ws = XLSX.utils.json_to_sheet(rows);
+                ws['!cols'] = [{ wch: 30 }, { wch: 12 }];
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            });
+
+        XLSX.writeFile(wb, `Analytics_${xlsxTimestamp()}.xlsx`);
+    }
+
+    // ================================================================
     // APPLY FILTERS (overrides)
     // ================================================================
     function applyFilters() {
@@ -2394,6 +2727,13 @@
     });
     document.getElementById('drilldownSearch').addEventListener('input', function() { renderTransporterDrilldown(filteredTrips); });
     document.getElementById('idleSearch').addEventListener('input', function() { renderIdleTimeAnalysis(); });
+    document.getElementById('exportIdleExcelBtn').addEventListener('click', exportIdleTimeExcel);
+    document.getElementById('exportOverviewExcelBtn').addEventListener('click', exportOverviewExcel);
+    document.getElementById('exportDefaultersExcelBtn').addEventListener('click', exportDefaultersExcel);
+    document.getElementById('exportDrilldownExcelBtn').addEventListener('click', exportDrilldownExcel);
+    document.getElementById('exportTableCsvBtn').addEventListener('click', exportCSV);
+    document.getElementById('exportTableExcelBtn').addEventListener('click', exportTableExcel);
+    document.getElementById('exportChartsExcelBtn').addEventListener('click', exportChartsExcel);
 
     // ================================================================
     // APP SHELL: view switching, sidebar collapse, filter panel toggle
