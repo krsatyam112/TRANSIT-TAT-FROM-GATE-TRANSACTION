@@ -518,6 +518,77 @@
             border: 1px solid #f5c6cb;
         }
 
+        /* ===== Transporter Drilldown ===== */
+        .drill-card {
+            border: 1px solid var(--gray-border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+        .drill-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            cursor: pointer;
+            background: var(--gray-light);
+            transition: background var(--transition);
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .drill-header:hover {
+            background: var(--primary-light);
+        }
+        .drill-header.defaulter {
+            background: #fff5f5;
+        }
+        .drill-header.defaulter:hover {
+            background: #ffe0e0;
+        }
+        .drill-name {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .drill-arrow {
+            display: inline-block;
+            transition: transform 0.2s ease;
+            font-size: 11px;
+            color: var(--gray);
+        }
+        .drill-arrow.open {
+            transform: rotate(90deg);
+        }
+        .drill-meta {
+            font-size: 12px;
+            color: var(--gray);
+            white-space: nowrap;
+        }
+        .drill-meta strong {
+            color: var(--primary);
+        }
+        .drill-body {
+            display: none;
+            background: white;
+        }
+        .drill-body.open {
+            display: block;
+        }
+        .drill-vehicle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 14px 7px 32px;
+            border-top: 1px solid var(--gray-border);
+            font-size: 12px;
+        }
+        .drill-vehicle-row:hover {
+            background: var(--gray-light);
+        }
+
         /* ===== Responsive ===== */
         @media (max-width: 768px) {
             body { padding: 10px; }
@@ -673,6 +744,15 @@
         <h3 style="color:var(--primary); margin-bottom: 8px;">🚨 Defaulter Analysis (Avg TAT &gt; 42 hrs)</h3>
         <div class="chart-container" id="defaulterContainer"></div>
         <div class="note">💡 A Transporter or Vehicle is flagged as a Defaulter when its average Transit TAT across all its own trips exceeds 42 hours. Trips with a blank Transporter are excluded from Transporter-level defaulter analysis (blank stays blank).</div>
+    </div>
+
+    <!-- ===== TRANSPORTER -> VEHICLE DRILLDOWN ===== -->
+    <div id="transporterDrilldownSection" style="margin: 20px 0 10px 0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom: 8px;">
+            <h3 style="color:var(--primary);">🔍 Transporter Trip Count (click to drill into vehicles)</h3>
+            <input type="text" id="drilldownSearch" placeholder="🔍 Search transporter..." style="padding:7px 12px;border:1px solid #d0d7de;border-radius:6px;font-size:13px;min-width:200px;">
+        </div>
+        <div id="transporterDrilldownContainer"></div>
     </div>
 
     <!-- ===== TABLE ===== -->
@@ -1580,6 +1660,107 @@
     }
 
     // ================================================================
+    // TRANSPORTER -> VEHICLE DRILLDOWN (trip counts at both levels)
+    // ================================================================
+    // Keep the last computed groups + open/closed state so the search box
+    // and re-renders (after filtering) don't need to rebuild from scratch
+    // or lose which cards the user had expanded.
+    let drilldownOpenState = {};
+
+    function computeTransporterVehicleGroups(trips) {
+        const groups = {};
+        trips.forEach(t => {
+            if (!t.Transporter) return; // blank transporter excluded, same rule as defaulter analysis
+            if (!groups[t.Transporter]) groups[t.Transporter] = {};
+            const vehKey = t.Vehicle || '(No Vehicle Recorded)';
+            if (!groups[t.Transporter][vehKey]) groups[t.Transporter][vehKey] = [];
+            groups[t.Transporter][vehKey].push(t);
+        });
+        return groups;
+    }
+
+    function renderTransporterDrilldown(trips) {
+        const container = document.getElementById('transporterDrilldownContainer');
+        if (!container) return;
+
+        const groups = computeTransporterVehicleGroups(trips);
+        const transporterNames = Object.keys(groups);
+
+        if (transporterNames.length === 0) {
+            container.innerHTML = '<div style="color:#6c7a8d;padding:20px;text-align:center;">No transporter data to display</div>';
+            return;
+        }
+
+        const searchTerm = (document.getElementById('drilldownSearch')?.value || '').toLowerCase().trim();
+
+        const summary = transporterNames.map(name => {
+            const vehicleMap = groups[name];
+            const allTripsForTransporter = Object.values(vehicleMap).flat();
+            const tripCount = allTripsForTransporter.length;
+            const validTat = allTripsForTransporter.filter(t => t.Transit_Time_Hours !== null && !isNaN(t.Transit_Time_Hours));
+            const avgTat = validTat.length > 0 ? validTat.reduce((s, t) => s + t.Transit_Time_Hours, 0) / validTat.length : null;
+            const isDefaulter = allTripsForTransporter[0].Transporter_Is_Defaulter;
+            const vehicleCount = Object.keys(vehicleMap).length;
+            return { name, tripCount, avgTat, isDefaulter, vehicleCount, vehicleMap };
+        })
+        .filter(t => !searchTerm || t.name.toLowerCase().includes(searchTerm))
+        .sort((a, b) => b.tripCount - a.tripCount);
+
+        if (summary.length === 0) {
+            container.innerHTML = '<div style="color:#6c7a8d;padding:20px;text-align:center;">No transporters match your search</div>';
+            return;
+        }
+
+        container.innerHTML = summary.map((t, idx) => {
+            const cardId = 'drill_' + idx;
+            const isOpen = !!drilldownOpenState[t.name];
+
+            const vehicleEntries = Object.keys(t.vehicleMap).map(v => {
+                const vTrips = t.vehicleMap[v];
+                const vValid = vTrips.filter(tr => tr.Transit_Time_Hours !== null && !isNaN(tr.Transit_Time_Hours));
+                const vAvg = vValid.length > 0 ? vValid.reduce((s, tr) => s + tr.Transit_Time_Hours, 0) / vValid.length : null;
+                const vDefaulter = vTrips[0].Vehicle_Is_Defaulter;
+                return { v, count: vTrips.length, avg: vAvg, isDefaulter: vDefaulter };
+            }).sort((a, b) => b.count - a.count);
+
+            const vehicleRows = vehicleEntries.map(ve => `
+                <div class="drill-vehicle-row">
+                    <span>${ve.v}${ve.isDefaulter ? ' <span class="badge badge-defaulter" title="Avg TAT &gt; 42 hrs">⚠</span>' : ''}</span>
+                    <span style="color:var(--gray);"><strong style="color:var(--primary);">${ve.count}</strong> trips${ve.avg !== null ? ' · ' + ve.avg.toFixed(1) + ' hrs avg' : ''}</span>
+                </div>
+            `).join('');
+
+            return `
+            <div class="drill-card">
+                <div class="drill-header${t.isDefaulter ? ' defaulter' : ''}" onclick="toggleDrilldown('${cardId}', '${t.name.replace(/'/g, "\\'")}')">
+                    <span class="drill-name">
+                        <span class="drill-arrow${isOpen ? ' open' : ''}" id="arrow_${cardId}">▶</span>
+                        ${t.name}${t.isDefaulter ? ' <span class="badge badge-defaulter">⚠ Defaulter</span>' : ''}
+                    </span>
+                    <span class="drill-meta">
+                        <strong>${t.tripCount}</strong> trips
+                        ${t.avgTat !== null ? ' · ' + t.avgTat.toFixed(1) + ' hrs avg' : ''}
+                        · ${t.vehicleCount} vehicle${t.vehicleCount === 1 ? '' : 's'}
+                    </span>
+                </div>
+                <div class="drill-body${isOpen ? ' open' : ''}" id="body_${cardId}">
+                    ${vehicleRows}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function toggleDrilldown(cardId, transporterName) {
+        const body = document.getElementById('body_' + cardId);
+        const arrow = document.getElementById('arrow_' + cardId);
+        if (!body || !arrow) return;
+        const nowOpen = !body.classList.contains('open');
+        body.classList.toggle('open', nowOpen);
+        arrow.classList.toggle('open', nowOpen);
+        drilldownOpenState[transporterName] = nowOpen;
+    }
+
+    // ================================================================
     // APPLY FILTERS (overrides)
     // ================================================================
     function applyFilters() {
@@ -1618,6 +1799,7 @@
         updateCharts(filteredTrips);
         renderTATGrid(filteredTrips);
         renderDefaulterAnalysis(currentDefaulterData);
+        renderTransporterDrilldown(filteredTrips);
         document.getElementById('summarySection').style.display = 'block';
     }
 
@@ -1671,12 +1853,14 @@
         allTrips = finalizeTrips(processTransitTAT(sampleData));
         populateFilterOptions(allTrips);
         filteredTrips = allTrips;
+        drilldownOpenState = {};
         renderTable(filteredTrips);
         updateStats(filteredTrips);
         updateDefaulterStats();
         updateCharts(filteredTrips);
         renderTATGrid(filteredTrips);
         renderDefaulterAnalysis(currentDefaulterData);
+        renderTransporterDrilldown(filteredTrips);
         document.getElementById('summarySection').style.display = 'block';
     }
 
@@ -1718,12 +1902,14 @@
                 allTrips = finalizeTrips(processTransitTAT(data));
                 populateFilterOptions(allTrips);
                 filteredTrips = allTrips;
+                drilldownOpenState = {};
                 renderTable(filteredTrips);
                 updateStats(filteredTrips);
                 updateDefaulterStats();
                 updateCharts(filteredTrips);
                 renderTATGrid(filteredTrips);
                 renderDefaulterAnalysis(currentDefaulterData);
+                renderTransporterDrilldown(filteredTrips);
                 document.getElementById('summarySection').style.display = 'block';
             } catch (error) {
                 alert('Error processing file: ' + error.message);
@@ -1757,6 +1943,7 @@
     ['filterStatus', 'filterCarrier', 'filterCustomer', 'filterTransporter', 'filterOrigin', 'filterMonth', 'filterYear', 'filterDefaulter'].forEach(id => {
         document.getElementById(id).addEventListener('change', applyFilters);
     });
+    document.getElementById('drilldownSearch').addEventListener('input', function() { renderTransporterDrilldown(filteredTrips); });
 
     console.log('📊 TRANSIT TAT DASHBOARD loaded with Vehicle column and Defaulter (avg TAT > 42hrs) detection!');
     console.log('📋 Click "Load Sample Data" to try it out with 300 clean sample trips.');
