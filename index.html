@@ -706,6 +706,23 @@
         .drill-vehicle-row:hover {
             background: var(--gray-light);
         }
+        .idle-gap-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 7px 14px 7px 32px;
+            border-top: 1px solid var(--gray-border);
+            font-size: 12px;
+        }
+        .idle-gap-row:hover {
+            background: var(--gray-light);
+        }
+        #idleTimeContainer .drill-card .drill-card {
+            border-left: 3px solid var(--gray-border);
+            border-radius: 0 8px 8px 0;
+        }
 
         /* ===== Responsive ===== */
         @media (max-width: 900px) {
@@ -778,6 +795,10 @@
             <button class="nav-item" data-view="drilldown" title="Transporter drilldown">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
                 <span>Drilldown</span>
+            </button>
+            <button class="nav-item" data-view="idle" title="Idle time">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+                <span>Idle Time</span>
             </button>
             <button class="nav-item" data-view="table" title="Trip log">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -945,6 +966,19 @@
                         <input type="text" id="drilldownSearch" placeholder="Search transporter…" class="search-input">
                     </div>
                     <div id="transporterDrilldownContainer"></div>
+                </div>
+            </section>
+
+            <!-- ===== VIEW: IDLE TIME ===== -->
+            <section class="view" id="view-idle">
+                <div class="stats-grid" id="idleStatsGrid" style="margin-bottom: 18px;"></div>
+                <div class="section-block">
+                    <div class="section-title-row">
+                        <h3 class="section-title">Idle time between trips <span class="section-title-sub">grouped by transporter → vehicle → gap</span></h3>
+                        <input type="text" id="idleSearch" placeholder="Search transporter or vehicle…" class="search-input">
+                    </div>
+                    <div id="idleTimeContainer"></div>
+                    <div class="note">Idle time = Gate Reported Date of the next forward leg (SHIP_TYPE CU/IU) minus Gate Reported Date of the vehicle's previous return leg (SHIP_TYPE EM/AD/EI), computed per vehicle in chronological order. Calculated on the full dataset, independent of the Filters panel.</div>
                 </div>
             </section>
 
@@ -1422,8 +1456,11 @@
     // ================================================================
     // MAIN PROCESSING
     // ================================================================
+    let allStdRows = []; // standardized per-leg rows from the most recently loaded dataset (used for idle-time analysis)
+
     function processTransitTAT(rawData) {
         const stdData = standardizeColumns(rawData);
+        allStdRows = stdData;
         const trips = buildTrips(stdData);
         const processed = calculateTransitAndClassify(trips);
         return processed.map(trip => {
@@ -1964,6 +2001,199 @@
     }
 
     // ================================================================
+    // IDLE TIME BETWEEN TRIPS (vehicle level, clubbed by transporter)
+    // ================================================================
+    // Definition (as specified): for a given vehicle, a trip ENDS at the
+    // Gate Reported Date of its return leg (SHIP_TYPE EM/AD/EI). The NEXT
+    // trip STARTS at the Gate Reported Date of the following forward leg
+    // (SHIP_TYPE CU/IU). Idle time = next start − previous end.
+    // This is computed leg-by-leg in chronological order per vehicle (not
+    // by pairing Trip IDs), so it still works across blank/orphan Trip IDs
+    // or back-to-back return legs in the raw gate data.
+    const FORWARD_TYPES = ['CU', 'IU'];
+    const RETURN_TYPES = ['EM', 'AD', 'EI'];
+
+    function resolveLegTransporter(row) {
+        if (row.Transporter_Name && row.Transporter_Name.trim()) return row.Transporter_Name.trim();
+        if (row.CARR_NAME && row.CARR_NAME.trim()) return row.CARR_NAME.trim();
+        return '';
+    }
+
+    function computeVehicleIdleRecords() {
+        const byVehicle = {};
+        allStdRows.forEach(row => {
+            const vehicle = (row.Vehicle || '').trim();
+            const shipType = row.SHIP_TYPE;
+            if (!vehicle || !row.Gate_Reported_Date) return;
+            if (FORWARD_TYPES.indexOf(shipType) === -1 && RETURN_TYPES.indexOf(shipType) === -1) return;
+            const d = new Date(row.Gate_Reported_Date);
+            if (isNaN(d.getTime())) return;
+            (byVehicle[vehicle] = byVehicle[vehicle] || []).push({ row, date: d, shipType });
+        });
+
+        const records = [];
+        Object.keys(byVehicle).forEach(vehicle => {
+            const legs = byVehicle[vehicle].sort((a, b) => a.date - b.date);
+            let lastReturn = null;
+            legs.forEach(leg => {
+                const isForward = FORWARD_TYPES.indexOf(leg.shipType) !== -1;
+                const isReturn = RETURN_TYPES.indexOf(leg.shipType) !== -1;
+                if (isForward && lastReturn) {
+                    const idleHours = (leg.date - lastReturn.date) / (1000 * 60 * 60);
+                    if (idleHours >= 0) {
+                        const transporter = resolveLegTransporter(lastReturn.row) || resolveLegTransporter(leg.row);
+                        records.push({
+                            Vehicle: vehicle,
+                            Transporter: transporter,
+                            PrevTripId: lastReturn.row.Trip_ID,
+                            NextTripId: leg.row.Trip_ID,
+                            PrevEnd: lastReturn.date,
+                            NextStart: leg.date,
+                            IdleHours: idleHours
+                        });
+                    }
+                    lastReturn = null;
+                }
+                if (isReturn) lastReturn = leg; // keep the most recent return leg seen
+            });
+        });
+        return records;
+    }
+
+    let cachedIdleRecords = null;
+
+    function groupIdleRecords(records, searchTerm) {
+        const term = (searchTerm || '').toLowerCase().trim();
+        const byTransporter = {};
+        records.forEach(r => {
+            if (!r.Transporter) return;
+            if (term && !r.Transporter.toLowerCase().includes(term) && !r.Vehicle.toLowerCase().includes(term)) return;
+            if (!byTransporter[r.Transporter]) byTransporter[r.Transporter] = {};
+            if (!byTransporter[r.Transporter][r.Vehicle]) byTransporter[r.Transporter][r.Vehicle] = [];
+            byTransporter[r.Transporter][r.Vehicle].push(r);
+        });
+        return byTransporter;
+    }
+
+    function fmtIdleDate(d) {
+        return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderIdleTimeAnalysis() {
+        const container = document.getElementById('idleTimeContainer');
+        const statsEl = document.getElementById('idleStatsGrid');
+        if (!container) return;
+
+        if (cachedIdleRecords === null) cachedIdleRecords = computeVehicleIdleRecords();
+        const records = cachedIdleRecords;
+
+        if (records.length === 0) {
+            container.innerHTML = '<div class="no-data">No consecutive trip pairs found to compute idle time</div>';
+            if (statsEl) statsEl.innerHTML = '';
+            return;
+        }
+
+        // Fleet-level headline stats
+        const fleetAvg = records.reduce((s, r) => s + r.IdleHours, 0) / records.length;
+        const vehicleSet = new Set(records.map(r => r.Vehicle));
+        const transporterAverages = {};
+        records.forEach(r => {
+            if (!r.Transporter) return;
+            (transporterAverages[r.Transporter] = transporterAverages[r.Transporter] || []).push(r.IdleHours);
+        });
+        const transporterAvgList = Object.keys(transporterAverages).map(name => ({
+            name, avg: transporterAverages[name].reduce((s, v) => s + v, 0) / transporterAverages[name].length
+        }));
+        const worstTransporter = transporterAvgList.length ? transporterAvgList.reduce((a, b) => a.avg > b.avg ? a : b) : null;
+
+        if (statsEl) {
+            statsEl.innerHTML = `
+                <div class="stat-card info"><div class="label">Idle gaps found</div><div class="value">${records.length}</div></div>
+                <div class="stat-card warning"><div class="label">Fleet avg idle (hrs)</div><div class="value">${fleetAvg.toFixed(1)}</div></div>
+                <div class="stat-card"><div class="label">Vehicles analyzed</div><div class="value">${vehicleSet.size}</div></div>
+                <div class="stat-card danger"><div class="label">Highest avg (transporter)</div><div class="value" style="font-size:15px;">${worstTransporter ? worstTransporter.name : '—'}</div></div>
+            `;
+        }
+
+        const searchTerm = document.getElementById('idleSearch') ? document.getElementById('idleSearch').value : '';
+        const grouped = groupIdleRecords(records, searchTerm);
+        const transporterNames = Object.keys(grouped);
+
+        if (transporterNames.length === 0) {
+            container.innerHTML = '<div class="no-data">No transporters match your search</div>';
+            return;
+        }
+
+        const transporterSummaries = transporterNames.map(name => {
+            const vehicleMap = grouped[name];
+            const allRecs = Object.values(vehicleMap).flat();
+            const avg = allRecs.reduce((s, r) => s + r.IdleHours, 0) / allRecs.length;
+            return { name, vehicleMap, avg, gapCount: allRecs.length, vehicleCount: Object.keys(vehicleMap).length };
+        }).sort((a, b) => b.avg - a.avg);
+
+        container.innerHTML = transporterSummaries.map((t, ti) => {
+            const vehicleRows = Object.keys(t.vehicleMap).map((veh, vi) => {
+                const vRecs = t.vehicleMap[veh].sort((a, b) => b.IdleHours - a.IdleHours);
+                const vAvg = vRecs.reduce((s, r) => s + r.IdleHours, 0) / vRecs.length;
+                const gapId = `idle_${ti}_${vi}`;
+                const gapRows = vRecs.map(r => `
+                    <div class="idle-gap-row">
+                        <span>${r.PrevTripId || '—'} → ${r.NextTripId || '—'}</span>
+                        <span class="drill-meta">
+                            <span class="meta-chip">${fmtIdleDate(r.PrevEnd)} → ${fmtIdleDate(r.NextStart)}</span>
+                            <span class="meta-chip"><strong>${r.IdleHours.toFixed(1)}</strong> hrs idle</span>
+                        </span>
+                    </div>
+                `).join('');
+                return `
+                <div class="drill-card" style="margin-left:16px;">
+                    <div class="drill-header" onclick="toggleNestedPanel('${gapId}')">
+                        <span class="drill-name">
+                            <span class="drill-arrow" id="arrow_${gapId}">▶</span>
+                            ${veh}
+                        </span>
+                        <span class="drill-meta">
+                            <span class="meta-chip">${vRecs.length} gap${vRecs.length === 1 ? '' : 's'}</span>
+                            <span class="meta-chip"><strong>${vAvg.toFixed(1)}</strong> hrs avg</span>
+                        </span>
+                    </div>
+                    <div class="drill-body" id="body_${gapId}">
+                        ${gapRows}
+                    </div>
+                </div>`;
+            }).join('');
+
+            const cardId = `idleT_${ti}`;
+            return `
+            <div class="drill-card">
+                <div class="drill-header" onclick="toggleNestedPanel('${cardId}')">
+                    <span class="drill-name">
+                        <span class="drill-arrow" id="arrow_${cardId}">▶</span>
+                        ${t.name}
+                    </span>
+                    <span class="drill-meta">
+                        <span class="meta-chip"><strong>${t.avg.toFixed(1)}</strong> hrs avg idle</span>
+                        <span class="meta-chip">${t.gapCount} gaps</span>
+                        <span class="meta-chip">${t.vehicleCount} vehicle${t.vehicleCount === 1 ? '' : 's'}</span>
+                    </span>
+                </div>
+                <div class="drill-body" id="body_${cardId}">
+                    ${vehicleRows}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function toggleNestedPanel(id) {
+        const body = document.getElementById('body_' + id);
+        const arrow = document.getElementById('arrow_' + id);
+        if (!body || !arrow) return;
+        const nowOpen = !body.classList.contains('open');
+        body.classList.toggle('open', nowOpen);
+        arrow.classList.toggle('open', nowOpen);
+    }
+
+    // ================================================================
     // APPLY FILTERS (overrides)
     // ================================================================
     function applyFilters() {
@@ -2067,6 +2297,7 @@
         populateFilterOptions(allTrips);
         filteredTrips = allTrips;
         drilldownOpenState = {};
+        cachedIdleRecords = null;
         renderTable(filteredTrips);
         updateStats(filteredTrips);
         updateDefaulterStats();
@@ -2074,6 +2305,7 @@
         renderTATGrid(filteredTrips);
         renderDefaulterAnalysis(currentDefaulterData);
         renderTransporterDrilldown(filteredTrips);
+        renderIdleTimeAnalysis();
         document.getElementById('summarySection').style.display = 'block';
         switchView('overview');
     }
@@ -2117,6 +2349,7 @@
                 populateFilterOptions(allTrips);
                 filteredTrips = allTrips;
                 drilldownOpenState = {};
+                cachedIdleRecords = null;
                 renderTable(filteredTrips);
                 updateStats(filteredTrips);
                 updateDefaulterStats();
@@ -2124,6 +2357,7 @@
                 renderTATGrid(filteredTrips);
                 renderDefaulterAnalysis(currentDefaulterData);
                 renderTransporterDrilldown(filteredTrips);
+                renderIdleTimeAnalysis();
                 document.getElementById('summarySection').style.display = 'block';
                 switchView('overview');
             } catch (error) {
@@ -2159,6 +2393,7 @@
         document.getElementById(id).addEventListener('change', applyFilters);
     });
     document.getElementById('drilldownSearch').addEventListener('input', function() { renderTransporterDrilldown(filteredTrips); });
+    document.getElementById('idleSearch').addEventListener('input', function() { renderIdleTimeAnalysis(); });
 
     // ================================================================
     // APP SHELL: view switching, sidebar collapse, filter panel toggle
@@ -2168,6 +2403,7 @@
         upload:     ['Data Source', 'Load or refresh the Gate Report CSV'],
         defaulters: ['Defaulters', 'Transporters & vehicles averaging over 42 hrs'],
         drilldown:  ['Transporter Drilldown', 'Trip counts by transporter, down to vehicle level'],
+        idle:       ['Idle Time', 'Gap between a vehicle\'s trips, clubbed by transporter'],
         table:      ['Trip Log', 'Every trip, filterable and exportable'],
         charts:     ['Analytics', 'Distribution across status, carrier, customer & lanes']
     };
